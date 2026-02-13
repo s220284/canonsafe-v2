@@ -1,0 +1,88 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: tpgpt-prod
+  REGION: us-east1
+  SERVICE_NAME: canonsafe-v2
+  IMAGE_REPO: us-east1-docker.pkg.dev/tpgpt-prod/canonsafe-repo/canonsafe-v2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker image
+        run: |
+          IMAGE_TAG="${{ env.IMAGE_REPO }}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG ./backend
+          docker push $IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="${{ env.IMAGE_TAG }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300 \
+            --max-instances=10 \
+            --min-instances=0 \
+            --port=8080 \
+            --set-cloudsql-instances="tpgpt-prod:us-east1:tpg-intel-db" \
+            --set-env-vars="CLOUD_SQL_CONNECTION_NAME=tpgpt-prod:us-east1:tpg-intel-db,DB_USER=postgres,DB_NAME=canonsafe,ALLOWED_ORIGINS=https://frontend-beta-ten-75.vercel.app,DEBUG=false" \
+            --update-secrets="DB_PASS=canonsafe-db-password:latest,SECRET_KEY=canonsafe-secret-key:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+
+      - name: Get deployment URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format="value(status.url)")
+          echo "Deployed to: $URL"
+
+      - name: Health check
+        run: |
+          sleep 10
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.url)")
+          if curl -sf "$URL/api/health" > /dev/null; then
+            echo "Health check passed"
+          else
+            echo "Health check failed - check deployment logs"
+            exit 1
+          fi

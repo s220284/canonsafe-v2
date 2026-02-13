@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
+    # Cloud SQL connection (set in Cloud Run env)
+    CLOUD_SQL_CONNECTION_NAME: Optional[str] = None
+    DB_USER: str = "postgres"
+    DB_PASS: Optional[str] = None
+    DB_NAME: str = "canonsafe"
+
     # Evaluation defaults
     DEFAULT_SAMPLING_RATE: float = 1.0  # 100% by default
     RAPID_SCREEN_THRESHOLD: float = 0.7
