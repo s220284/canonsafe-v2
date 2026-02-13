@@ -1,0 +1,53 @@
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './contexts/AuthContext'
+import Layout from './components/Layout'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import Characters from './pages/Characters'
+import CharacterWorkspace from './pages/CharacterWorkspace'
+import Franchises from './pages/Franchises'
+import FranchiseHealth from './pages/FranchiseHealth'
+import Critics from './pages/Critics'
+import Evaluations from './pages/Evaluations'
+import TestSuites from './pages/TestSuites'
+import Certifications from './pages/Certifications'
+import Taxonomy from './pages/Taxonomy'
+import Exemplars from './pages/Exemplars'
+import Improvement from './pages/Improvement'
+import APM from './pages/APM'
+import Settings from './pages/Settings'
+import UserManual from './pages/UserManual'
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return <Layout>{children}</Layout>
+}
+
+export default function App() {
+  const { user, loading } = useAuth()
+
+  return (
+    <Routes>
+      <Route path="/login" element={
+        loading ? null : user ? <Navigate to="/" replace /> : <Login />
+      } />
+      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
+      <Route path="/characters/:id" element={<ProtectedRoute><CharacterWorkspace /></ProtectedRoute>} />
+      <Route path="/franchises" element={<ProtectedRoute><Franchises /></ProtectedRoute>} />
+      <Route path="/franchises/:id/health" element={<ProtectedRoute><FranchiseHealth /></ProtectedRoute>} />
+      <Route path="/critics" element={<ProtectedRoute><Critics /></ProtectedRoute>} />
+      <Route path="/evaluations" element={<ProtectedRoute><Evaluations /></ProtectedRoute>} />
+      <Route path="/test-suites" element={<ProtectedRoute><TestSuites /></ProtectedRoute>} />
+      <Route path="/certifications" element={<ProtectedRoute><Certifications /></ProtectedRoute>} />
+      <Route path="/taxonomy" element={<ProtectedRoute><Taxonomy /></ProtectedRoute>} />
+      <Route path="/exemplars" element={<ProtectedRoute><Exemplars /></ProtectedRoute>} />
+      <Route path="/improvement" element={<ProtectedRoute><Improvement /></ProtectedRoute>} />
+      <Route path="/apm" element={<ProtectedRoute><APM /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/manual" element={<ProtectedRoute><UserManual /></ProtectedRoute>} />
+    </Routes>
+  )
+}
