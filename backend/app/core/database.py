@@ -56,18 +56,30 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-        # Migration: add is_main / is_focus columns (idempotent)
-        from sqlalchemy import text
-        for col in ("is_main", "is_focus"):
-            try:
-                await conn.execute(text(
-                    f"ALTER TABLE character_cards ADD COLUMN {col} BOOLEAN DEFAULT 0"
-                ))
-            except Exception:
-                pass  # column already exists
+    # Run migrations in a separate transaction so failures don't poison create_all
+    from sqlalchemy import text
+    is_postgres = database_url.startswith("postgresql")
 
-        # Backfill main characters
+    async with engine.begin() as conn:
+        # Migration: add is_main / is_focus columns (idempotent)
+        # On PostgreSQL, use IF NOT EXISTS via information_schema check
+        for col in ("is_main", "is_focus"):
+            if is_postgres:
+                await conn.execute(text(
+                    f"ALTER TABLE character_cards ADD COLUMN IF NOT EXISTS {col} BOOLEAN DEFAULT false"
+                ))
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE character_cards ADD COLUMN {col} BOOLEAN DEFAULT 0"
+                    ))
+                except Exception:
+                    pass  # column already exists (SQLite has no IF NOT EXISTS)
+
+    # Backfill main characters in its own transaction
+    async with engine.begin() as conn:
         await conn.execute(text(
-            "UPDATE character_cards SET is_main = 1 "
-            "WHERE name IN ('Peppa Pig', 'George Pig', 'Mummy Pig', 'Daddy Pig', 'Suzy Sheep')"
+            "UPDATE character_cards SET is_main = true "
+            "WHERE name IN ('Peppa Pig', 'George Pig', 'Mummy Pig', 'Daddy Pig', 'Suzy Sheep') "
+            "AND is_main = false"
         ))
