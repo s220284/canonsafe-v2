@@ -23,7 +23,7 @@ from app.core.database import Base
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 # ─── Organization & Users ───────────────────────────────────────
