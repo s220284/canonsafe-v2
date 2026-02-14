@@ -36,6 +36,10 @@ export default function TestSuites() {
   const [addingCase, setAddingCase] = useState(false)
   const [newCaseForm, setNewCaseForm] = useState({ name: '', prompt: '', expected: '', tags: '' })
 
+  // Run suite
+  const [runningSuite, setRunningSuite] = useState(null)
+  const [runResult, setRunResult] = useState(null)
+
   // Create suite
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', character_id: '', tier: 'base', passing_threshold: 90 })
@@ -168,6 +172,42 @@ export default function TestSuites() {
     }
     setSavingCase(false)
   }
+
+  const runSuite = async (suiteId) => {
+    setRunningSuite(suiteId)
+    setRunResult(null)
+    try {
+      const res = await api.post(`/test-suites/${suiteId}/run`)
+      setRunResult(res.data)
+    } catch (err) {
+      setRunResult({ error: err.response?.data?.detail || err.message })
+    }
+    setRunningSuite(null)
+  }
+
+  const scoreColor = (s) => {
+    if (s == null) return 'text-gray-400'
+    if (s >= 90) return 'text-green-600'
+    if (s >= 70) return 'text-yellow-600'
+    if (s >= 50) return 'text-orange-600'
+    return 'text-red-600'
+  }
+
+  const barColor = (s) => {
+    if (s >= 90) return 'bg-green-400'
+    if (s >= 70) return 'bg-yellow-400'
+    if (s >= 50) return 'bg-orange-400'
+    return 'bg-red-400'
+  }
+
+  const decisionBadge = (d) => ({
+    pass: 'bg-green-100 text-green-700',
+    regenerate: 'bg-yellow-100 text-yellow-700',
+    quarantine: 'bg-orange-100 text-orange-700',
+    escalate: 'bg-red-100 text-red-700',
+    block: 'bg-red-200 text-red-800',
+    error: 'bg-red-200 text-red-800',
+  }[d] || 'bg-gray-100 text-gray-600')
 
   const thresholdColor = (t) => {
     if (t >= 90) return 'text-green-600'
@@ -322,6 +362,11 @@ export default function TestSuites() {
                         <span>{cases.length} test case{cases.length !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); setRunResult(null); runSuite(s.id) }}
+                          disabled={runningSuite === s.id}
+                          className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 disabled:opacity-50">
+                          {runningSuite === s.id ? 'Running...' : 'Run Suite'}
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); startEditSuite(s) }}
                           className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
                           Edit Suite
@@ -361,6 +406,56 @@ export default function TestSuites() {
                         </button>
                         <button onClick={() => setAddingCase(false)} className="border px-3 py-1.5 rounded text-sm">Cancel</button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Run results */}
+                  {runResult && selected === s.id && (
+                    <div className="border-t">
+                      {runResult.error ? (
+                        <div className="p-4 bg-red-50 text-red-700 text-sm">{runResult.error}</div>
+                      ) : (
+                        <div className="p-4 bg-indigo-50">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-sm">Run Results</h4>
+                            <button onClick={() => setRunResult(null)} className="text-xs text-gray-400 hover:text-gray-600">Dismiss</button>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                            <div className="bg-white rounded p-2">
+                              <p className="text-xs text-gray-400">Avg Score</p>
+                              <p className={`text-xl font-bold font-mono ${scoreColor(runResult.avg_score)}`}>{runResult.avg_score?.toFixed(1)}</p>
+                            </div>
+                            <div className="bg-white rounded p-2">
+                              <p className="text-xs text-gray-400">Pass Rate</p>
+                              <p className={`text-xl font-bold font-mono ${scoreColor(runResult.pass_rate * 100)}`}>{(runResult.pass_rate * 100).toFixed(0)}%</p>
+                            </div>
+                            <div className="bg-white rounded p-2">
+                              <p className="text-xs text-gray-400">Passed</p>
+                              <p className="text-xl font-bold text-green-600">{runResult.passed_cases}</p>
+                            </div>
+                            <div className="bg-white rounded p-2">
+                              <p className="text-xs text-gray-400">Failed</p>
+                              <p className="text-xl font-bold text-red-600">{runResult.failed_cases}</p>
+                            </div>
+                            <div className="bg-white rounded p-2">
+                              <p className="text-xs text-gray-400">Overall</p>
+                              <span className={`text-sm font-bold px-2 py-0.5 rounded ${runResult.overall_passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {runResult.overall_passed ? 'PASSED' : 'FAILED'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            {runResult.case_results?.map((cr, i) => (
+                              <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded ${cr.passed ? 'bg-white' : 'bg-red-50'}`}>
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cr.passed ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span className="text-sm flex-1 truncate">{cr.test_case_name}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded ${decisionBadge(cr.decision)}`}>{cr.decision}</span>
+                                <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{cr.score?.toFixed(1)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

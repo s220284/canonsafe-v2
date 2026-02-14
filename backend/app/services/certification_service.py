@@ -59,7 +59,7 @@ async def certify_agent(db: AsyncSession, request: CertificationRequest, org_id:
 
     avg_score = sum(scores) / len(scores) if scores else 0.0
     passed = avg_score >= suite.passing_threshold
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     cert = AgentCertification(
         agent_id=request.agent_id,

@@ -104,3 +104,72 @@ async def delete_test_case(
     if not ok:
         raise HTTPException(status_code=404, detail="Test case not found")
     return {"ok": True}
+
+
+@router.post("/{suite_id}/run")
+async def run_test_suite(
+    suite_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Execute all test cases in a suite through the evaluation pipeline."""
+    from app.schemas.evaluations import EvalRequest
+    from app.services import evaluation_service
+
+    suite = await test_suite_service.get_suite(db, suite_id, user.org_id)
+    if not suite:
+        raise HTTPException(status_code=404, detail="Test suite not found")
+
+    test_cases = await test_suite_service.list_test_cases(db, suite_id)
+    if not test_cases:
+        raise HTTPException(status_code=400, detail="Test suite has no test cases")
+
+    results = []
+    scores = []
+    for tc in test_cases:
+        content = tc.input_content.get("content", tc.input_content.get("prompt", ""))
+        modality = tc.input_content.get("modality", "text")
+        eval_req = EvalRequest(
+            character_id=suite.character_id,
+            content=content,
+            modality=modality,
+        )
+        try:
+            run = await evaluation_service.evaluate(db, eval_req, user.org_id)
+            score = run.overall_score or 0.0
+            scores.append(score)
+            results.append({
+                "test_case_id": tc.id,
+                "test_case_name": tc.name,
+                "score": score,
+                "decision": run.decision,
+                "passed": score >= suite.passing_threshold,
+                "eval_run_id": run.id,
+            })
+        except Exception as e:
+            scores.append(0.0)
+            results.append({
+                "test_case_id": tc.id,
+                "test_case_name": tc.name,
+                "score": 0.0,
+                "decision": "error",
+                "error": str(e),
+                "passed": False,
+            })
+
+    avg_score = sum(scores) / len(scores) if scores else 0.0
+    passed_count = sum(1 for r in results if r.get("passed"))
+
+    return {
+        "suite_id": suite.id,
+        "suite_name": suite.name,
+        "character_id": suite.character_id,
+        "total_cases": len(test_cases),
+        "passed_cases": passed_count,
+        "failed_cases": len(test_cases) - passed_count,
+        "avg_score": round(avg_score, 4),
+        "pass_rate": round(passed_count / len(test_cases), 4) if test_cases else 0,
+        "threshold": suite.passing_threshold,
+        "overall_passed": avg_score >= suite.passing_threshold,
+        "case_results": results,
+    }

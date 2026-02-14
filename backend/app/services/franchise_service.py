@@ -54,7 +54,7 @@ async def compute_franchise_health(db: AsyncSession, franchise_id: int, org_id: 
     if not franchise:
         return {}
 
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
 
     # Get all eval runs for this franchise
     result = await db.execute(
@@ -135,7 +135,7 @@ async def compute_franchise_health(db: AsyncSession, franchise_id: int, org_id: 
 
 
 async def save_aggregate(db: AsyncSession, franchise_id: int, org_id: int, health: dict) -> FranchiseEvaluationAggregate:
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     agg = FranchiseEvaluationAggregate(
         franchise_id=franchise_id,
         period_start=now - timedelta(days=30),

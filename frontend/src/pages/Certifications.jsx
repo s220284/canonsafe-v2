@@ -39,6 +39,8 @@ export default function Certifications() {
   // Create
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ agent_id: '', character_id: '', card_version_id: '', tier: 'base', test_suite_id: '' })
+  const [certifying, setCertifying] = useState(false)
+  const [certError, setCertError] = useState('')
 
   // Filter
   const [filterAgent, setFilterAgent] = useState('')
@@ -63,14 +65,35 @@ export default function Certifications() {
 
   const certify = async (e) => {
     e.preventDefault()
-    await api.post('/certifications', {
-      ...form,
-      character_id: parseInt(form.character_id),
-      card_version_id: parseInt(form.card_version_id),
-      test_suite_id: parseInt(form.test_suite_id),
-    })
-    setShowCreate(false)
-    load()
+    setCertifying(true)
+    setCertError('')
+    try {
+      await api.post('/certifications', {
+        ...form,
+        character_id: parseInt(form.character_id),
+        card_version_id: parseInt(form.card_version_id),
+        test_suite_id: parseInt(form.test_suite_id),
+      })
+      setShowCreate(false)
+      setForm({ agent_id: '', character_id: '', card_version_id: '', tier: 'base', test_suite_id: '' })
+      load()
+    } catch (err) {
+      setCertError(err.response?.data?.detail || err.message)
+    }
+    setCertifying(false)
+  }
+
+  // Auto-populate card_version_id when character is selected
+  const handleCharacterSelect = async (charId) => {
+    setForm({ ...form, character_id: charId, card_version_id: '' })
+    if (charId) {
+      try {
+        const res = await api.get(`/characters/${charId}`)
+        if (res.data.active_version_id) {
+          setForm(f => ({ ...f, card_version_id: String(res.data.active_version_id) }))
+        }
+      } catch {}
+    }
   }
 
   const toggleSelect = (id) => {
@@ -199,11 +222,13 @@ export default function Certifications() {
       {showCreate && (
         <form onSubmit={certify} className="bg-white rounded-lg shadow p-4 mb-4 space-y-3">
           <h3 className="font-medium text-sm text-gray-500">Run Agent Certification</h3>
-          <input placeholder="Agent ID (e.g. demo-agent-v1)" value={form.agent_id}
+          <p className="text-xs text-gray-400">Select a character and test suite, then run the full certification pipeline. Each test case will be evaluated through the LLM critic framework.</p>
+          {certError && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded">{certError}</div>}
+          <input placeholder="Agent ID (e.g. peppa-agent-v1)" value={form.agent_id}
             onChange={(e) => setForm({ ...form, agent_id: e.target.value })}
             className="w-full border rounded px-3 py-2 text-sm" required />
           <div className="grid grid-cols-2 gap-3">
-            <select value={form.character_id} onChange={(e) => setForm({ ...form, character_id: e.target.value })}
+            <select value={form.character_id} onChange={(e) => handleCharacterSelect(e.target.value)}
               className="border rounded px-3 py-2 text-sm" required>
               <option value="">Character...</option>
               {characters.some(c => c.is_main) && (
@@ -222,13 +247,18 @@ export default function Certifications() {
                 </optgroup>
               )}
             </select>
-            <input placeholder="Card Version ID" value={form.card_version_id}
-              onChange={(e) => setForm({ ...form, card_version_id: e.target.value })}
-              className="border rounded px-3 py-2 text-sm" required />
+            <div className="relative">
+              <input placeholder="Card Version ID" value={form.card_version_id}
+                onChange={(e) => setForm({ ...form, card_version_id: e.target.value })}
+                className="border rounded px-3 py-2 text-sm w-full" required />
+              {form.card_version_id && <span className="absolute right-2 top-2.5 text-xs text-green-500">auto</span>}
+            </div>
             <select value={form.test_suite_id} onChange={(e) => setForm({ ...form, test_suite_id: e.target.value })}
               className="border rounded px-3 py-2 text-sm" required>
               <option value="">Test Suite...</option>
-              {suites.map((s) => <option key={s.id} value={s.id}>{s.name} ({charMap[s.character_id] || '?'})</option>)}
+              {suites.filter(s => !form.character_id || s.character_id === parseInt(form.character_id)).map((s) => (
+                <option key={s.id} value={s.id}>{s.name} ({charMap[s.character_id] || '?'})</option>
+              ))}
             </select>
             <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })}
               className="border rounded px-3 py-2 text-sm">
@@ -237,7 +267,9 @@ export default function Certifications() {
             </select>
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm">Run Certification</button>
+            <button type="submit" disabled={certifying} className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">
+              {certifying ? 'Running Certification...' : 'Run Certification'}
+            </button>
             <button type="button" onClick={() => setShowCreate(false)} className="border px-4 py-2 rounded text-sm">Cancel</button>
           </div>
         </form>

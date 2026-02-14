@@ -60,7 +60,7 @@ async def evaluate(db: AsyncSession, request: EvalRequest, org_id: int) -> EvalR
         eval_run.status = "completed"
         eval_run.decision = "block"
         eval_run.overall_score = 0.0
-        eval_run.completed_at = datetime.now(timezone.utc)
+        eval_run.completed_at = datetime.utcnow()
         result = EvalResult(
             eval_run_id=eval_run.id,
             weighted_score=0.0,
@@ -82,7 +82,7 @@ async def evaluate(db: AsyncSession, request: EvalRequest, org_id: int) -> EvalR
         eval_run.status = "completed"
         eval_run.decision = "sampled-pass"
         eval_run.sampled = True
-        eval_run.completed_at = datetime.now(timezone.utc)
+        eval_run.completed_at = datetime.utcnow()
         await db.flush()
         return eval_run
 
@@ -162,7 +162,7 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
     eval_run.overall_score = overall_score
     eval_run.decision = decision
     eval_run.status = "completed"
-    eval_run.completed_at = datetime.now(timezone.utc)
+    eval_run.completed_at = datetime.utcnow()
 
     # Build C2PA metadata
     eval_run.c2pa_metadata = {

@@ -145,19 +145,30 @@ async def list_profiles(db: AsyncSession, org_id: int) -> List[EvaluationProfile
 
 def assemble_prompt(template: str, card_version: CardVersion, content: str, extra_instructions: str = "") -> str:
     """Populate {placeholder} variables from character card packs."""
+    canon = card_version.canon_pack or {}
     variables = {
-        "character_name": "",
-        "canon_pack": json.dumps(card_version.canon_pack, indent=2),
-        "legal_pack": json.dumps(card_version.legal_pack, indent=2),
-        "safety_pack": json.dumps(card_version.safety_pack, indent=2),
-        "visual_identity_pack": json.dumps(card_version.visual_identity_pack, indent=2),
-        "audio_identity_pack": json.dumps(card_version.audio_identity_pack, indent=2),
+        "character_name": canon.get("name", "") if isinstance(canon, dict) else "",
+        "franchise_name": "",
+        "canon_pack": json.dumps(canon, indent=2),
+        "canon_facts": json.dumps(canon.get("facts", []) if isinstance(canon, dict) else [], indent=2),
+        "voice_profile": json.dumps(canon.get("voice", {}) if isinstance(canon, dict) else {}, indent=2),
+        "relationships": json.dumps(canon.get("relationships", []) if isinstance(canon, dict) else [], indent=2),
+        "legal_pack": json.dumps(card_version.legal_pack or {}, indent=2),
+        "safety_pack": json.dumps(card_version.safety_pack or {}, indent=2),
+        "visual_identity_pack": json.dumps(card_version.visual_identity_pack or {}, indent=2),
+        "audio_identity_pack": json.dumps(card_version.audio_identity_pack or {}, indent=2),
         "content": content,
         "extra_instructions": extra_instructions,
     }
-    # Extract character name from canon pack if available
-    if isinstance(card_version.canon_pack, dict):
-        variables["character_name"] = card_version.canon_pack.get("name", "")
+
+    # Try to resolve franchise name from character relationship
+    try:
+        from app.models.core import CharacterCard
+        if hasattr(card_version, 'character') and card_version.character:
+            if hasattr(card_version.character, 'franchise') and card_version.character.franchise:
+                variables["franchise_name"] = card_version.character.franchise.name
+    except Exception:
+        pass
 
     result = template
     for key, value in variables.items():
