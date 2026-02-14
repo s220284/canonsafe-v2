@@ -1,0 +1,226 @@
+# CanonSafe V2 — Reusable evaluation workflow for CI/CD integration
+# Call this from your own repos to run CanonSafe evaluations as part of your pipeline.
+#
+# Usage in your workflow:
+#   jobs:
+#     canonsafe-eval:
+#       uses: your-org/canonsafe-v2/.github/workflows/canonsafe-eval.yml@main
+#       with:
+#         api_url: https://canonsafe.example.com
+#         character_id: 1
+#         test_suite_id: 5
+#       secrets:
+#         api_token: ${{ secrets.CANONSAFE_API_TOKEN }}
+
+name: CanonSafe Evaluation
+
+on:
+  workflow_call:
+    inputs:
+      api_url:
+        description: "CanonSafe API base URL (e.g. https://canonsafe.example.com/api)"
+        required: true
+        type: string
+      character_id:
+        description: "Character ID to evaluate against"
+        required: true
+        type: number
+      test_suite_id:
+        description: "Test suite ID to run (optional, provide either this or test_cases)"
+        required: false
+        type: number
+        default: 0
+      threshold:
+        description: "Minimum score threshold for pass (0.0 - 1.0)"
+        required: false
+        type: number
+        default: 0.7
+      fail_on_error:
+        description: "Fail the workflow if any evaluation fails"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      api_token:
+        description: "CanonSafe API bearer token"
+        required: true
+    outputs:
+      passed:
+        description: "Whether all evaluations passed"
+        value: ${{ jobs.evaluate.outputs.passed }}
+      score:
+        description: "Overall pass rate"
+        value: ${{ jobs.evaluate.outputs.score }}
+      details_url:
+        description: "URL to view detailed results"
+        value: ${{ jobs.evaluate.outputs.details_url }}
+      total:
+        description: "Total number of test cases evaluated"
+        value: ${{ jobs.evaluate.outputs.total }}
+      failed_count:
+        description: "Number of failed test cases"
+        value: ${{ jobs.evaluate.outputs.failed_count }}
+
+jobs:
+  evaluate:
+    name: Run CanonSafe Evaluations
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.eval.outputs.passed }}
+      score: ${{ steps.eval.outputs.score }}
+      details_url: ${{ steps.eval.outputs.details_url }}
+      total: ${{ steps.eval.outputs.total }}
+      failed_count: ${{ steps.eval.outputs.failed_count }}
+
+    steps:
+      - name: Run evaluations via CanonSafe API
+        id: eval
+        env:
+          API_URL: ${{ inputs.api_url }}
+          API_TOKEN: ${{ secrets.api_token }}
+          CHARACTER_ID: ${{ inputs.character_id }}
+          TEST_SUITE_ID: ${{ inputs.test_suite_id }}
+          THRESHOLD: ${{ inputs.threshold }}
+        run: |
+          set -euo pipefail
+
+          echo "=== CanonSafe V2 Evaluation ==="
+          echo "API URL: ${API_URL}"
+          echo "Character ID: ${CHARACTER_ID}"
+          echo "Threshold: ${THRESHOLD}"
+
+          # Build the request payload
+          if [ "${TEST_SUITE_ID}" -gt 0 ] 2>/dev/null; then
+            echo "Running test suite #${TEST_SUITE_ID}"
+            PAYLOAD=$(cat <<ENDJSON
+          {
+            "test_suite_id": ${TEST_SUITE_ID},
+            "cases": []
+          }
+          ENDJSON
+          )
+          else
+            echo "No test suite specified, running single eval"
+            PAYLOAD=$(cat <<ENDJSON
+          {
+            "character_id": ${CHARACTER_ID},
+            "content": "CI/CD health check evaluation",
+            "modality": "text",
+            "threshold": ${THRESHOLD}
+          }
+          ENDJSON
+          )
+          fi
+
+          # Determine endpoint
+          if [ "${TEST_SUITE_ID}" -gt 0 ] 2>/dev/null; then
+            ENDPOINT="${API_URL}/ci/batch"
+          else
+            ENDPOINT="${API_URL}/ci/trigger"
+          fi
+
+          echo "Endpoint: ${ENDPOINT}"
+
+          # Make the API call
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${ENDPOINT}" \
+            -H "Authorization: Bearer ${API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}")
+
+          HTTP_CODE=$(echo "${RESPONSE}" | tail -1)
+          BODY=$(echo "${RESPONSE}" | head -n -1)
+
+          echo "HTTP Status: ${HTTP_CODE}"
+
+          if [ "${HTTP_CODE}" -ne 200 ]; then
+            echo "::error::CanonSafe API returned HTTP ${HTTP_CODE}"
+            echo "${BODY}"
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "score=0" >> "$GITHUB_OUTPUT"
+            echo "total=0" >> "$GITHUB_OUTPUT"
+            echo "failed_count=0" >> "$GITHUB_OUTPUT"
+            echo "details_url=${API_URL}/evaluations" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Parse response
+          if [ "${TEST_SUITE_ID}" -gt 0 ] 2>/dev/null; then
+            # Batch response
+            PASSED=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(str(d.get('overall_passed', False)).lower())")
+            SCORE=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('pass_rate', 0))")
+            TOTAL=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('total', 0))")
+            FAILED=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('failed', 0))")
+            BATCH_ID=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('batch_id', ''))")
+          else
+            # Single trigger response
+            PASSED=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(str(d.get('passed', False)).lower())")
+            SCORE=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('score', 0))")
+            TOTAL="1"
+            FAILED=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print('0' if d.get('passed', False) else '1')")
+            BATCH_ID=""
+          fi
+
+          echo "passed=${PASSED}" >> "$GITHUB_OUTPUT"
+          echo "score=${SCORE}" >> "$GITHUB_OUTPUT"
+          echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
+          echo "failed_count=${FAILED}" >> "$GITHUB_OUTPUT"
+          echo "details_url=${API_URL}/evaluations" >> "$GITHUB_OUTPUT"
+
+          # Print summary
+          echo ""
+          echo "=== Results ==="
+          echo "Passed: ${PASSED}"
+          echo "Score/Pass Rate: ${SCORE}"
+          echo "Total Cases: ${TOTAL}"
+          echo "Failed: ${FAILED}"
+
+          if [ "${PASSED}" = "true" ]; then
+            echo ""
+            echo "All evaluations passed!"
+          else
+            echo ""
+            echo "::warning::Some evaluations did not meet the threshold"
+          fi
+
+      - name: Check results
+        if: inputs.fail_on_error
+        env:
+          PASSED: ${{ steps.eval.outputs.passed }}
+          FAILED_COUNT: ${{ steps.eval.outputs.failed_count }}
+        run: |
+          if [ "${PASSED}" != "true" ]; then
+            echo "::error::CanonSafe evaluation failed. ${FAILED_COUNT} test case(s) did not pass."
+            exit 1
+          fi
+          echo "CanonSafe evaluation passed successfully."
+
+      - name: Create job summary
+        if: always()
+        env:
+          PASSED: ${{ steps.eval.outputs.passed }}
+          SCORE: ${{ steps.eval.outputs.score }}
+          TOTAL: ${{ steps.eval.outputs.total }}
+          FAILED_COUNT: ${{ steps.eval.outputs.failed_count }}
+          DETAILS_URL: ${{ steps.eval.outputs.details_url }}
+        run: |
+          if [ "${PASSED}" = "true" ]; then
+            STATUS_EMOJI="white_check_mark"
+            STATUS_TEXT="PASSED"
+          else
+            STATUS_EMOJI="x"
+            STATUS_TEXT="FAILED"
+          fi
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## CanonSafe Evaluation Results
+
+          | Metric | Value |
+          |--------|-------|
+          | Status | :${STATUS_EMOJI}: ${STATUS_TEXT} |
+          | Pass Rate | ${SCORE} |
+          | Total Cases | ${TOTAL} |
+          | Failed | ${FAILED_COUNT} |
+
+          [View detailed results](${DETAILS_URL})
+          EOF

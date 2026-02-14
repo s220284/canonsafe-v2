@@ -534,3 +534,87 @@ class DriftEvent(Base):
     acknowledged = Column(Boolean, default=False)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime, default=utcnow)
+
+
+# ─── A/B Testing ──────────────────────────────────────────────
+
+class ABExperiment(Base):
+    __tablename__ = "ab_experiments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    status = Column(String(50), default="draft")  # draft, running, completed, cancelled
+    experiment_type = Column(String(100), nullable=False)  # critic_weight, prompt_template, model, profile
+    variant_a = Column(JSON, nullable=False)  # config for variant A
+    variant_b = Column(JSON, nullable=False)  # config for variant B
+    sample_size = Column(Integer, default=100)  # target number of evals per variant
+    results_a = Column(JSON, default=dict)  # aggregated results for A
+    results_b = Column(JSON, default=dict)  # aggregated results for B
+    winner = Column(String(10), nullable=True)  # "a", "b", "inconclusive"
+    statistical_significance = Column(Float, nullable=True)  # p-value
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    trial_runs = relationship("ABTrialRun", back_populates="experiment")
+
+
+class ABTrialRun(Base):
+    __tablename__ = "ab_trial_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    experiment_id = Column(Integer, ForeignKey("ab_experiments.id"), nullable=False)
+    variant = Column(String(10), nullable=False)  # "a" or "b"
+    eval_run_id = Column(Integer, ForeignKey("eval_runs.id"), nullable=False)
+    score = Column(Float, nullable=True)
+    decision = Column(String(50), nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    cost = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    experiment = relationship("ABExperiment", back_populates="trial_runs")
+
+
+# ─── Red Team ─────────────────────────────────────────────────
+
+class RedTeamSession(Base):
+    __tablename__ = "red_team_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    character_id = Column(Integer, ForeignKey("character_cards.id"), nullable=False)
+    attack_categories = Column(JSON, default=list)  # ["persona_break", "knowledge_probe", "safety_bypass", "boundary_test", "context_manipulation"]
+    status = Column(String(50), default="pending")  # pending, running, completed
+    total_probes = Column(Integer, default=0)
+    successful_attacks = Column(Integer, default=0)  # probes that got low scores
+    resilience_score = Column(Float, nullable=True)  # 1.0 = fully resilient
+    results = Column(JSON, default=list)  # list of probe results
+    probes_per_category = Column(Integer, default=5)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+
+# ─── Custom Judge Registry ────────────────────────────────────
+
+class CustomJudge(Base):
+    __tablename__ = "custom_judges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), nullable=False)
+    description = Column(Text)
+    model_type = Column(String(100), nullable=False)  # "openai_compatible", "anthropic", "huggingface", "custom_endpoint"
+    endpoint_url = Column(String(500), nullable=True)  # for custom endpoints
+    model_name = Column(String(255), nullable=True)  # model identifier
+    api_key_ref = Column(String(255), nullable=True)  # reference to secret (not the actual key)
+    default_temperature = Column(Float, default=0.0)
+    default_max_tokens = Column(Integer, default=2048)
+    capabilities = Column(JSON, default=list)  # ["text", "image", "audio", "video"]
+    pricing = Column(JSON, default=dict)  # {"input_per_1m": 0.15, "output_per_1m": 0.60}
+    is_active = Column(Boolean, default=True)
+    health_status = Column(String(50), default="unknown")  # unknown, healthy, degraded, down
+    last_health_check = Column(DateTime, nullable=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)

@@ -44,6 +44,12 @@ export default function TestSuites() {
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', character_id: '', tier: 'base', passing_threshold: 90 })
 
+  // Auto-generate
+  const [showAutoGen, setShowAutoGen] = useState(null) // suite id or null
+  const [autoGenForm, setAutoGenForm] = useState({ character_id: '', count: 20 })
+  const [autoGenLoading, setAutoGenLoading] = useState(false)
+  const [autoGenResult, setAutoGenResult] = useState(null)
+
   const load = () => api.get('/test-suites').then((r) => setSuites(r.data))
   useEffect(() => {
     load()
@@ -183,6 +189,31 @@ export default function TestSuites() {
       setRunResult({ error: err.response?.data?.detail || err.message })
     }
     setRunningSuite(null)
+  }
+
+  const startAutoGen = (suite) => {
+    setShowAutoGen(suite.id)
+    setAutoGenForm({ character_id: suite.character_id.toString(), count: 20 })
+    setAutoGenResult(null)
+  }
+
+  const runAutoGen = async (suiteId) => {
+    setAutoGenLoading(true)
+    setAutoGenResult(null)
+    try {
+      const res = await api.post('/test-gen/populate-suite', {
+        character_id: parseInt(autoGenForm.character_id),
+        suite_id: suiteId,
+        count: parseInt(autoGenForm.count),
+      })
+      setAutoGenResult(res.data)
+      // Refresh cases
+      const casesRes = await api.get(`/test-suites/${suiteId}/cases`)
+      setCases(casesRes.data)
+    } catch (err) {
+      setAutoGenResult({ error: err.response?.data?.detail || err.message })
+    }
+    setAutoGenLoading(false)
   }
 
   const scoreColor = (s) => {
@@ -375,6 +406,10 @@ export default function TestSuites() {
                           className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
                           Add Case
                         </button>
+                        <button onClick={(e) => { e.stopPropagation(); startAutoGen(s) }}
+                          className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">
+                          Auto-Generate Tests
+                        </button>
                       </div>
                     </div>
                   )}
@@ -406,6 +441,61 @@ export default function TestSuites() {
                         </button>
                         <button onClick={() => setAddingCase(false)} className="border px-3 py-1.5 rounded text-sm">Cancel</button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Auto-generate tests form */}
+                  {showAutoGen === s.id && !isEditing && (
+                    <div className="p-4 bg-purple-50 border-t space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-gray-600">Auto-Generate Test Cases</h4>
+                        <button onClick={() => { setShowAutoGen(null); setAutoGenResult(null) }}
+                          className="text-xs text-gray-400 hover:text-gray-600">Close</button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Uses AI to analyze the character card and generate test cases covering personality, relationships, world knowledge, safety, and voice consistency.
+                      </p>
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500">Character</label>
+                          <select
+                            value={autoGenForm.character_id}
+                            onChange={(e) => setAutoGenForm({ ...autoGenForm, character_id: e.target.value })}
+                            className="w-full border rounded px-3 py-2 text-sm mt-0.5"
+                          >
+                            <option value="">Select Character...</option>
+                            {characters.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-32">
+                          <label className="text-xs text-gray-500">Count</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={autoGenForm.count}
+                            onChange={(e) => setAutoGenForm({ ...autoGenForm, count: e.target.value })}
+                            className="w-full border rounded px-3 py-2 text-sm mt-0.5"
+                          />
+                        </div>
+                        <button
+                          onClick={() => runAutoGen(s.id)}
+                          disabled={autoGenLoading || !autoGenForm.character_id}
+                          className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {autoGenLoading ? 'Generating...' : 'Generate'}
+                        </button>
+                      </div>
+                      {autoGenResult && (
+                        <div className={`p-3 rounded text-sm ${autoGenResult.error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {autoGenResult.error
+                            ? autoGenResult.error
+                            : `Successfully generated ${autoGenResult.added_count} test cases and added to this suite.`
+                          }
+                        </div>
+                      )}
                     </div>
                   )}
 

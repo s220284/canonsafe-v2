@@ -197,6 +197,122 @@ async def init_db():
                 except Exception:
                     pass
 
+    # Migration: add probes_per_category to red_team_sessions (idempotent)
+    async with engine.begin() as conn:
+        for col_name, col_type in [("probes_per_category", "INTEGER DEFAULT 5")]:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE red_team_sessions ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE red_team_sessions ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: ab_experiments columns (idempotent)
+    async with engine.begin() as conn:
+        ab_exp_cols = [
+            ("name", "VARCHAR(255) NOT NULL DEFAULT ''"),
+            ("description", "TEXT"),
+            ("status", "VARCHAR(50) DEFAULT 'draft'"),
+            ("experiment_type", "VARCHAR(100) NOT NULL DEFAULT ''"),
+            ("variant_a", "TEXT"),
+            ("variant_b", "TEXT"),
+            ("sample_size", "INTEGER DEFAULT 100"),
+            ("results_a", "TEXT"),
+            ("results_b", "TEXT"),
+            ("winner", "VARCHAR(10)"),
+            ("statistical_significance", "REAL"),
+            ("org_id", "INTEGER NOT NULL DEFAULT 0"),
+            ("created_at", "TIMESTAMP"),
+            ("completed_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in ab_exp_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE ab_experiments ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE ab_experiments ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: ab_trial_runs columns (idempotent)
+    async with engine.begin() as conn:
+        ab_trial_cols = [
+            ("experiment_id", "INTEGER NOT NULL DEFAULT 0"),
+            ("variant", "VARCHAR(10) NOT NULL DEFAULT ''"),
+            ("eval_run_id", "INTEGER NOT NULL DEFAULT 0"),
+            ("score", "REAL"),
+            ("decision", "VARCHAR(50)"),
+            ("latency_ms", "INTEGER"),
+            ("cost", "REAL"),
+            ("created_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in ab_trial_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE ab_trial_runs ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE ab_trial_runs ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: custom_judges table columns (idempotent)
+    async with engine.begin() as conn:
+        judge_cols = [
+            ("name", "VARCHAR(255) NOT NULL DEFAULT ''"),
+            ("slug", "VARCHAR(100) NOT NULL DEFAULT ''"),
+            ("description", "TEXT"),
+            ("model_type", "VARCHAR(100) NOT NULL DEFAULT ''"),
+            ("endpoint_url", "VARCHAR(500)"),
+            ("model_name", "VARCHAR(255)"),
+            ("api_key_ref", "VARCHAR(255)"),
+            ("default_temperature", "REAL DEFAULT 0.0"),
+            ("default_max_tokens", "INTEGER DEFAULT 2048"),
+            ("capabilities", "TEXT"),
+            ("pricing", "TEXT"),
+            ("is_active", "BOOLEAN DEFAULT 1"),
+            ("health_status", "VARCHAR(50) DEFAULT 'unknown'"),
+            ("last_health_check", "TIMESTAMP"),
+            ("org_id", "INTEGER NOT NULL DEFAULT 0"),
+            ("created_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in judge_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE custom_judges ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE custom_judges ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
     # Backfill main characters in its own transaction
     async with engine.begin() as conn:
         await conn.execute(text(

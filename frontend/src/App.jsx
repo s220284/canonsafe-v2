@@ -20,6 +20,11 @@ import DriftMonitor from './pages/DriftMonitor'
 import Consent from './pages/Consent'
 import Settings from './pages/Settings'
 import UserManual from './pages/UserManual'
+import Compare from './pages/Compare'
+import RedTeam from './pages/RedTeam'
+import ABTesting from './pages/ABTesting'
+import Judges from './pages/Judges'
+import MultiModal from './pages/MultiModal'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -43,6 +48,7 @@ export default function App() {
       <Route path="/franchises/:id/health" element={<ProtectedRoute><FranchiseHealth /></ProtectedRoute>} />
       <Route path="/critics" element={<ProtectedRoute><Critics /></ProtectedRoute>} />
       <Route path="/evaluations" element={<ProtectedRoute><Evaluations /></ProtectedRoute>} />
+      <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
       <Route path="/reviews" element={<ProtectedRoute><ReviewQueue /></ProtectedRoute>} />
       <Route path="/test-suites" element={<ProtectedRoute><TestSuites /></ProtectedRoute>} />
       <Route path="/certifications" element={<ProtectedRoute><Certifications /></ProtectedRoute>} />
@@ -51,6 +57,10 @@ export default function App() {
       <Route path="/drift" element={<ProtectedRoute><DriftMonitor /></ProtectedRoute>} />
       <Route path="/improvement" element={<ProtectedRoute><Improvement /></ProtectedRoute>} />
       <Route path="/apm" element={<ProtectedRoute><APM /></ProtectedRoute>} />
+      <Route path="/red-team" element={<ProtectedRoute><RedTeam /></ProtectedRoute>} />
+      <Route path="/ab-testing" element={<ProtectedRoute><ABTesting /></ProtectedRoute>} />
+      <Route path="/judges" element={<ProtectedRoute><Judges /></ProtectedRoute>} />
+      <Route path="/multimodal" element={<ProtectedRoute><MultiModal /></ProtectedRoute>} />
       <Route path="/consent" element={<ProtectedRoute><Consent /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/manual" element={<ProtectedRoute><UserManual /></ProtectedRoute>} />

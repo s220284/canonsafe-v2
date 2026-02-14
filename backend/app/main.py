@@ -39,6 +39,7 @@ from app.api.routes import (
     characters,
     critics,
     evaluations,
+    compare,
     franchises,
     taxonomy,
     test_suites,
@@ -52,12 +53,19 @@ from app.api.routes import (
     webhooks,
     export,
     drift,
+    red_team,
+    test_gen,
+    ab_testing,
+    ci,
+    judges,
+    multimodal,
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(characters.router, prefix="/api/characters", tags=["Characters"])
 app.include_router(critics.router, prefix="/api/critics", tags=["Critics"])
 app.include_router(evaluations.router, prefix="/api/evaluations", tags=["Evaluations"])
+app.include_router(compare.router, prefix="/api/compare", tags=["Compare"])
 app.include_router(franchises.router, prefix="/api/franchises", tags=["Franchises"])
 app.include_router(taxonomy.router, prefix="/api/taxonomy", tags=["Taxonomy"])
 app.include_router(test_suites.router, prefix="/api/test-suites", tags=["Test Suites"])
@@ -70,4 +78,10 @@ app.include_router(reviews.router, prefix="/api/reviews", tags=["Reviews"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(drift.router, prefix="/api/drift", tags=["Drift"])
+app.include_router(red_team.router, prefix="/api/red-team", tags=["Red Team"])
+app.include_router(test_gen.router, prefix="/api/test-gen", tags=["Test Generation"])
+app.include_router(ab_testing.router, prefix="/api/ab-testing", tags=["A/B Testing"])
+app.include_router(ci.router, prefix="/api/ci", tags=["CI/CD"])
+app.include_router(judges.router, prefix="/api/judges", tags=["Judges"])
+app.include_router(multimodal.router, prefix="/api/multimodal", tags=["Multi-Modal"])
 app.include_router(health.router, prefix="/api", tags=["Health"])
