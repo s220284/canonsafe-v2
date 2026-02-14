@@ -6,3 +6,7 @@ __pycache__/
 *.db
 *.sqlite3
 .DS_Store
+.vercel/
+venv/
+.venv/
+*.egg-info/
