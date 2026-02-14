@@ -11,6 +11,20 @@ export default function FranchiseHealth() {
     api.get(`/franchises/${id}/health`).then((r) => setHealth(r.data))
   }, [id])
 
+  const exportCSV = async () => {
+    try {
+      const res = await api.get(`/export/franchise-health/${id}?format=csv`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `franchise_health_${id}_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed', err)
+    }
+  }
+
   if (!health) return <div className="text-gray-500 p-8">Loading franchise health...</div>
 
   // Scores from backend are on 0-100 scale
@@ -38,7 +52,15 @@ export default function FranchiseHealth() {
 
   return (
     <div>
-      <PageHeader title={`${health.franchise_name || 'Franchise'} Health`} subtitle="Franchise-level evaluation metrics and per-character breakdown" />
+      <PageHeader
+        title={`${health.franchise_name || 'Franchise'} Health`}
+        subtitle="Franchise-level evaluation metrics and per-character breakdown"
+        action={
+          <button onClick={exportCSV} className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50">
+            Export CSV
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {metrics.map((m) => (

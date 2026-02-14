@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from app.core.auth import get_current_user
+from app.core.rbac import require_editor
 from app.core.database import get_db
-from app.models.core import User
+from app.models.core import User, ConsentVerification
 from app.schemas.consent import ConsentCreate, ConsentOut, ConsentCheckRequest, ConsentCheckResult
 from app.services import consent_service
 
@@ -18,18 +20,33 @@ router = APIRouter()
 async def create_consent(
     data: ConsentCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     return await consent_service.create_consent(db, data, user.org_id)
 
 
 @router.get("", response_model=List[ConsentOut])
 async def list_consents(
+    response: Response,
     character_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await consent_service.list_consents(db, user.org_id, character_id)
+    # Total count for pagination
+    count_q = select(func.count(ConsentVerification.id)).where(ConsentVerification.org_id == user.org_id)
+    if character_id:
+        count_q = count_q.where(ConsentVerification.character_id == character_id)
+    total = (await db.execute(count_q)).scalar() or 0
+    response.headers["X-Total-Count"] = str(total)
+
+    q = select(ConsentVerification).where(ConsentVerification.org_id == user.org_id)
+    if character_id:
+        q = q.where(ConsentVerification.character_id == character_id)
+    q = q.offset(offset).limit(limit)
+    result = await db.execute(q)
+    return list(result.scalars().all())
 
 
 @router.post("/check", response_model=ConsentCheckResult)
@@ -49,7 +66,7 @@ async def check_consent(
 async def activate_strike(
     consent_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     consent = await consent_service.activate_strike(db, consent_id, user.org_id)
     if not consent:

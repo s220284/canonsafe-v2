@@ -13,6 +13,21 @@ export default function Evaluations() {
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [c2paOpen, setC2paOpen] = useState(false)
+
+  const exportCSV = async () => {
+    try {
+      const res = await api.get('/export/evaluations?format=csv', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `evaluations_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed', err)
+    }
+  }
 
   const load = () => api.get('/evaluations').then((r) => setRuns(r.data))
   useEffect(() => {
@@ -142,7 +157,7 @@ export default function Evaluations() {
             <div className="space-y-2">
               {res.critic_results.map((cr) => (
                 <div key={cr.id} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 w-44 truncate flex-shrink-0">
+                  <span className="text-xs text-gray-500 w-44 truncate flex-shrink-0" title={cr.model_used || ''}>
                     {criticMap[cr.critic_id] || criticMap[String(cr.critic_id)] || `Critic #${cr.critic_id}`}
                   </span>
                   <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
@@ -151,6 +166,11 @@ export default function Evaluations() {
                   </div>
                   <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{cr.score.toFixed(1)}</span>
                   <span className="text-xs text-gray-400 w-14 text-right">{cr.latency_ms}ms</span>
+                  {cr.estimated_cost != null && cr.estimated_cost > 0 && (
+                    <span className="text-xs text-gray-300 w-16 text-right" title={`${cr.prompt_tokens || 0}+${cr.completion_tokens || 0} tokens`}>
+                      ${cr.estimated_cost.toFixed(4)}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -188,13 +208,48 @@ export default function Evaluations() {
           </div>
         )}
 
-        {/* C2PA */}
+        {/* C2PA Content Credentials */}
         {run.c2pa_metadata && Object.keys(run.c2pa_metadata).length > 0 && (
           <div className="mt-4 border-t pt-3">
-            <p className="text-xs font-medium text-gray-400 mb-1">C2PA Provenance Metadata</p>
-            <pre className="text-xs bg-gray-50 rounded p-2 overflow-auto text-gray-500">
-              {JSON.stringify(run.c2pa_metadata, null, 2)}
-            </pre>
+            <button
+              onClick={() => setC2paOpen(!c2paOpen)}
+              className="flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-700 w-full text-left"
+            >
+              <span className={`transition-transform ${c2paOpen ? 'rotate-90' : ''}`}>&#9654;</span>
+              Content Credentials (C2PA)
+              <span className="ml-auto text-gray-400 text-xs font-normal">
+                v{run.c2pa_metadata.canonsafe_version || '?'}
+              </span>
+            </button>
+            {c2paOpen && (
+              <div className="mt-2 bg-gray-50 rounded p-3 space-y-2">
+                {/* Highlighted key fields */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[
+                    { label: 'CanonSafe Version', key: 'canonsafe_version' },
+                    { label: 'Eval Run ID', key: 'eval_run_id' },
+                    { label: 'Overall Score', key: 'overall_score', fmt: (v) => v != null ? Number(v).toFixed(2) : 'N/A' },
+                    { label: 'Decision', key: 'decision' },
+                    { label: 'Character ID', key: 'character_id' },
+                    { label: 'Evaluated At', key: 'evaluated_at', fmt: (v) => v ? new Date(v).toLocaleString() : 'N/A' },
+                  ].map(({ label, key, fmt }) => (
+                    <div key={key} className="bg-white rounded p-2 border border-gray-100">
+                      <p className="text-xs text-gray-400">{label}</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {fmt ? fmt(run.c2pa_metadata[key]) : (run.c2pa_metadata[key] ?? 'N/A')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {/* Full JSON (collapsible detail) */}
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-gray-400 hover:text-gray-600">Full C2PA Metadata (JSON)</summary>
+                  <pre className="mt-1 bg-white rounded p-2 overflow-auto text-gray-500 border border-gray-100">
+                    {JSON.stringify(run.c2pa_metadata, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -207,9 +262,14 @@ export default function Evaluations() {
         title="Evaluations"
         subtitle={`${runs.length} evaluation runs — Click any row to view details`}
         action={
-          <button onClick={() => { setShowEval(!showEval); setResult(null) }} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
-            {showEval ? 'Close' : 'New Evaluation'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportCSV} className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50">
+              Export CSV
+            </button>
+            <button onClick={() => { setShowEval(!showEval); setResult(null) }} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+              {showEval ? 'Close' : 'New Evaluation'}
+            </button>
+          </div>
         }
       />
 

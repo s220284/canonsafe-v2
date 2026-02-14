@@ -46,6 +46,20 @@ export default function Certifications() {
   const [filterAgent, setFilterAgent] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
 
+  const exportCSV = async () => {
+    try {
+      const res = await api.get('/export/certifications?format=csv', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `certifications_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed', err)
+    }
+  }
+
   const load = () => api.get('/certifications').then((r) => setCerts(r.data))
   useEffect(() => {
     load()
@@ -168,9 +182,14 @@ export default function Certifications() {
         title="Agent Certification"
         subtitle={`${certs.length} certifications — ${passed} passed, ${failed} failed — Click any card to view details`}
         action={
-          <button onClick={() => setShowCreate(!showCreate)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
-            {showCreate ? 'Close' : 'Certify Agent'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportCSV} className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50">
+              Export CSV
+            </button>
+            <button onClick={() => setShowCreate(!showCreate)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+              {showCreate ? 'Close' : 'Certify Agent'}
+            </button>
+          </div>
         }
       />
 

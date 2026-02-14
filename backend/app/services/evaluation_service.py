@@ -1,6 +1,7 @@
 """Evaluation engine — orchestrates multi-critic, multi-modal evaluation."""
 from __future__ import annotations
 
+import math
 import random
 from datetime import datetime, timezone
 from typing import Optional, List
@@ -180,12 +181,27 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
     for r in critic_results:
         all_flags.extend(r.get("flags", []))
 
+    # Compute inter-critic agreement
+    critic_agreement = None
+    if len(critic_results) >= 2:
+        scores = [r["score"] for r in critic_results]
+        mean_score = sum(scores) / len(scores)
+        variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
+        std_dev = math.sqrt(variance)
+        # Normalize std_dev: max possible std_dev for 0-1 scores is 0.5
+        # agreement_score = 1 - (std_dev / 0.5), clamped to [0, 1]
+        normalized_std_dev = min(std_dev / 0.5, 1.0)
+        critic_agreement = round(1.0 - normalized_std_dev, 4)
+        if std_dev > 0.3:
+            all_flags.append("critic_disagreement")
+
     result = EvalResult(
         eval_run_id=eval_run.id,
         weighted_score=overall_score,
         critic_scores={str(r["critic_id"]): r["score"] for r in critic_results},
         flags=all_flags,
         recommendations=_generate_recommendations(critic_results, decision),
+        critic_agreement=critic_agreement,
     )
     db.add(result)
     await db.flush()
@@ -201,10 +217,37 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
             flags=r.get("flags", []),
             raw_response=r,
             latency_ms=r.get("latency_ms"),
+            prompt_tokens=r.get("prompt_tokens"),
+            completion_tokens=r.get("completion_tokens"),
+            model_used=r.get("model_used"),
+            estimated_cost=r.get("estimated_cost"),
         )
         db.add(cr)
 
     await db.flush()
+
+    # Auto-queue review items for quarantine/escalate decisions
+    if decision in ("quarantine", "escalate"):
+        from app.services import review_service
+        await review_service.create_review_item(db, eval_run.id, decision, eval_run.org_id)
+
+    # Dispatch webhook events
+    try:
+        from app.services import webhook_service
+        webhook_payload = {
+            "eval_run_id": eval_run.id,
+            "character_id": eval_run.character_id,
+            "score": overall_score,
+            "decision": decision,
+        }
+        await webhook_service.dispatch_event(db, "eval_completed", webhook_payload, eval_run.org_id)
+        if decision == "block":
+            await webhook_service.dispatch_event(db, "eval_blocked", webhook_payload, eval_run.org_id)
+        elif decision in ("escalate", "quarantine"):
+            await webhook_service.dispatch_event(db, "eval_escalated", webhook_payload, eval_run.org_id)
+    except Exception:
+        pass  # Don't let webhook failures break evaluations
+
     return eval_run
 
 
@@ -236,10 +279,10 @@ async def get_eval_result(db: AsyncSession, run_id: int) -> Optional[EvalResult]
     return result.scalar_one_or_none()
 
 
-async def list_eval_runs(db: AsyncSession, org_id: int, character_id: Optional[int] = None, limit: int = 50) -> List[EvalRun]:
+async def list_eval_runs(db: AsyncSession, org_id: int, character_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[EvalRun]:
     q = select(EvalRun).where(EvalRun.org_id == org_id)
     if character_id:
         q = q.where(EvalRun.character_id == character_id)
-    q = q.order_by(EvalRun.created_at.desc()).limit(limit)
+    q = q.order_by(EvalRun.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(q)
     return list(result.scalars().all())

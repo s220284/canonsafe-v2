@@ -16,7 +16,7 @@ from app.models.core import (
     CardVersion,
 )
 from app.schemas.critics import CriticCreate, CriticUpdate, CriticConfigCreate, EvaluationProfileCreate
-from app.core.llm import call_llm_json
+from app.core.llm import call_llm_json, call_both_llms_json
 
 
 # ─── Critic CRUD ────────────────────────────────────────────────
@@ -176,6 +176,26 @@ def assemble_prompt(template: str, card_version: CardVersion, content: str, extr
     return result
 
 
+# ─── Cost Estimation ──────────────────────────────────────────
+
+# Pricing per 1M tokens (input, output) as of 2024
+_MODEL_PRICING = {
+    "gpt-4o-mini": (0.15, 0.60),
+    "claude-3-haiku-20240307": (0.25, 1.25),
+}
+
+
+def _estimate_cost(token_usage: dict) -> float:
+    """Estimate cost in USD based on model and token counts."""
+    model = token_usage.get("model", "unknown")
+    prompt_tokens = token_usage.get("prompt_tokens", 0)
+    completion_tokens = token_usage.get("completion_tokens", 0)
+
+    input_price, output_price = _MODEL_PRICING.get(model, (0.15, 0.60))
+    cost = (prompt_tokens * input_price / 1_000_000) + (completion_tokens * output_price / 1_000_000)
+    return round(cost, 8)
+
+
 # ─── Parallel Critic Dispatch ──────────────────────────────────
 
 async def run_critic(
@@ -184,7 +204,7 @@ async def run_critic(
     content: str,
     extra_instructions: str = "",
 ) -> dict:
-    """Run a single critic against content. Returns score, reasoning, flags."""
+    """Run a single critic against content. Returns score, confidence, reasoning, flags, and token usage."""
     system_prompt = assemble_prompt(
         critic.prompt_template, card_version, content, extra_instructions
     )
@@ -194,25 +214,116 @@ Content to evaluate:
 {content}
 
 Respond with JSON:
-{{"score": <float 0-1>, "reasoning": "<explanation>", "flags": [<list of issues>]}}"""
+{{"score": <float 0-1>, "confidence": <float 0.0-1.0>, "reasoning": "<explanation>", "flags": [<list of issues>]}}"""
 
     start = time.monotonic()
     try:
-        result = await call_llm_json(system_prompt, user_prompt)
+        result, token_usage = await call_llm_json(system_prompt, user_prompt, _return_usage=True)
         latency = int((time.monotonic() - start) * 1000)
         return {
             "score": float(result.get("score", 0)),
+            "confidence": float(result.get("confidence", 1.0)),
             "reasoning": result.get("reasoning", ""),
             "flags": result.get("flags", []),
             "latency_ms": latency,
+            "prompt_tokens": token_usage.get("prompt_tokens", 0),
+            "completion_tokens": token_usage.get("completion_tokens", 0),
+            "model_used": token_usage.get("model", "unknown"),
+            "estimated_cost": _estimate_cost(token_usage),
         }
     except Exception as e:
         latency = int((time.monotonic() - start) * 1000)
         return {
             "score": 0.0,
+            "confidence": 0.0,
             "reasoning": f"Critic error: {str(e)}",
             "flags": ["critic_error"],
             "latency_ms": latency,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "model_used": "unknown",
+            "estimated_cost": 0.0,
+        }
+
+
+async def run_critic_multi_judge(
+    critic: Critic,
+    card_version: CardVersion,
+    content: str,
+    extra_instructions: str = "",
+) -> dict:
+    """Run a single critic through BOTH OpenAI and Anthropic and return aggregated result.
+
+    Both providers are called in parallel. The returned score is the average of
+    both judges. Flags are combined (union). If the two judges disagree by more
+    than 0.3 on score, a 'judge_disagreement' flag is added.
+    """
+    system_prompt = assemble_prompt(
+        critic.prompt_template, card_version, content, extra_instructions
+    )
+    user_prompt = f"""Evaluate the following content for character fidelity.
+
+Content to evaluate:
+{content}
+
+Respond with JSON:
+{{"score": <float 0-1>, "confidence": <float 0.0-1.0>, "reasoning": "<explanation>", "flags": [<list of issues>]}}"""
+
+    start = time.monotonic()
+    try:
+        openai_result, anthropic_result = await call_both_llms_json(
+            system_prompt, user_prompt
+        )
+        latency = int((time.monotonic() - start) * 1000)
+
+        openai_score = float(openai_result.get("score", 0))
+        anthropic_score = float(anthropic_result.get("score", 0))
+        avg_score = (openai_score + anthropic_score) / 2.0
+
+        openai_confidence = float(openai_result.get("confidence", 1.0))
+        anthropic_confidence = float(anthropic_result.get("confidence", 1.0))
+        avg_confidence = (openai_confidence + anthropic_confidence) / 2.0
+
+        # Combine flags from both judges (unique set)
+        combined_flags = list(set(
+            openai_result.get("flags", []) + anthropic_result.get("flags", [])
+        ))
+
+        # Check for judge disagreement
+        score_diff = abs(openai_score - anthropic_score)
+        if score_diff > 0.3:
+            combined_flags.append("judge_disagreement")
+
+        # Build combined reasoning
+        reasoning = (
+            f"[Multi-Judge] OpenAI score: {openai_score:.2f}, "
+            f"Anthropic score: {anthropic_score:.2f}, "
+            f"Difference: {score_diff:.2f}. "
+            f"OpenAI reasoning: {openai_result.get('reasoning', 'N/A')} | "
+            f"Anthropic reasoning: {anthropic_result.get('reasoning', 'N/A')}"
+        )
+
+        return {
+            "score": avg_score,
+            "confidence": avg_confidence,
+            "reasoning": reasoning,
+            "flags": combined_flags,
+            "latency_ms": latency,
+            "multi_judge": True,
+            "judge_scores": {
+                "openai": openai_score,
+                "anthropic": anthropic_score,
+            },
+        }
+    except Exception as e:
+        latency = int((time.monotonic() - start) * 1000)
+        return {
+            "score": 0.0,
+            "confidence": 0.0,
+            "reasoning": f"Multi-judge critic error: {str(e)}",
+            "flags": ["critic_error"],
+            "latency_ms": latency,
+            "multi_judge": True,
         }
 
 
@@ -220,12 +331,23 @@ async def run_critics_parallel(
     critics_with_config: List[Tuple[Critic, Optional[CriticConfiguration]]],
     card_version: CardVersion,
     content: str,
+    multi_judge: bool = False,
 ) -> List[dict]:
-    """Run multiple critics in parallel and return results."""
+    """Run multiple critics in parallel and return results.
+
+    Args:
+        critics_with_config: List of (Critic, optional CriticConfiguration) tuples.
+        card_version: The character card version to evaluate against.
+        content: The content string to evaluate.
+        multi_judge: When True, each critic is run through both OpenAI and Anthropic
+                     via run_critic_multi_judge instead of the single-provider run_critic.
+    """
+    dispatch_fn = run_critic_multi_judge if multi_judge else run_critic
+
     tasks = []
     for critic, config in critics_with_config:
         extra = config.extra_instructions if config and config.extra_instructions else ""
-        tasks.append(run_critic(critic, card_version, content, extra))
+        tasks.append(dispatch_fn(critic, card_version, content, extra))
 
     results = await asyncio.gather(*tasks)
 

@@ -278,6 +278,7 @@ class EvalResult(Base):
     critic_scores = Column(JSON, default=dict)  # {critic_id: score}
     flags = Column(JSON, default=list)
     recommendations = Column(JSON, default=list)
+    critic_agreement = Column(Float, nullable=True)  # 1.0 = perfect agreement, 0.0 = max disagreement
     created_at = Column(DateTime, default=utcnow)
 
     eval_run = relationship("EvalRun", back_populates="results")
@@ -297,6 +298,10 @@ class CriticResult(Base):
     flags = Column(JSON, default=list)
     raw_response = Column(JSON, default=dict)
     latency_ms = Column(Integer, nullable=True)
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    model_used = Column(String, nullable=True)
+    estimated_cost = Column(Float, nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
     eval_result = relationship("EvalResult", back_populates="critic_results")
@@ -399,6 +404,41 @@ class FranchiseEvaluationAggregate(Base):
     franchise = relationship("Franchise", back_populates="evaluation_aggregates")
 
 
+# ─── Webhook / Event Notifications ────────────────────────────
+
+class WebhookSubscription(Base):
+    __tablename__ = "webhook_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, nullable=False)
+    secret = Column(String, nullable=False)  # HMAC signing secret
+    events = Column(JSON, default=list)  # list of event types to subscribe to
+    active = Column(Boolean, default=True)
+    description = Column(String, nullable=True)
+    last_triggered_at = Column(DateTime, nullable=True)
+    failure_count = Column(Integer, default=0)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+    deliveries = relationship("WebhookDelivery", back_populates="subscription")
+
+
+class WebhookDelivery(Base):
+    __tablename__ = "webhook_deliveries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    subscription_id = Column(Integer, ForeignKey("webhook_subscriptions.id"), nullable=False)
+    event_type = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False)
+    status_code = Column(Integer, nullable=True)
+    response_body = Column(Text, nullable=True)
+    success = Column(Boolean, default=False)
+    attempts = Column(Integer, default=1)
+    created_at = Column(DateTime, default=utcnow)
+
+    subscription = relationship("WebhookSubscription", back_populates="deliveries")
+
+
 # ─── Taxonomy ───────────────────────────────────────────────────
 
 class TaxonomyCategory(Base):
@@ -434,6 +474,34 @@ class TaxonomyTag(Base):
     __table_args__ = (UniqueConstraint("slug", "category_id", name="uq_tag_slug_cat"),)
 
     category = relationship("TaxonomyCategory", back_populates="tags")
+
+
+# ─── Drift Detection ───────────────────────────────────────────
+
+# ─── Review Queue ──────────────────────────────────────────────
+
+class ReviewItem(Base):
+    __tablename__ = "review_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    eval_run_id = Column(Integer, ForeignKey("eval_runs.id"), nullable=False)
+    character_id = Column(Integer, ForeignKey("character_cards.id"))
+    status = Column(String, default="pending")  # pending, claimed, resolved, expired
+    priority = Column(Integer, default=0)  # higher = more urgent
+    reason = Column(String)  # why it needs review: "quarantine", "escalate", "critic_disagreement", "low_confidence"
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_at = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolution = Column(String, nullable=True)  # "approved", "overridden", "re_evaluated"
+    override_decision = Column(String, nullable=True)  # new decision if overridden
+    override_justification = Column(Text, nullable=True)
+    reviewer_notes = Column(Text, nullable=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+    eval_run = relationship("EvalRun", backref="review_items")
+    character = relationship("CharacterCard")
+    assigned_user = relationship("User")
 
 
 # ─── Drift Detection ───────────────────────────────────────────

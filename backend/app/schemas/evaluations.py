@@ -46,6 +46,10 @@ class CriticResultOut(BaseModel):
     reasoning: Optional[str]
     flags: list
     latency_ms: Optional[int]
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    model_used: Optional[str] = None
+    estimated_cost: Optional[float] = None
 
     class Config:
         from_attributes = True

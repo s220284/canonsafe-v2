@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.rbac import require_editor
 from app.core.database import get_db
 from app.models.core import User
 from app.schemas.franchises import FranchiseCreate, FranchiseUpdate, FranchiseOut, FranchiseHealthOut
@@ -18,7 +19,7 @@ router = APIRouter()
 async def create_franchise(
     data: FranchiseCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     return await franchise_service.create_franchise(db, data, user.org_id)
 
@@ -48,7 +49,7 @@ async def update_franchise(
     franchise_id: int,
     data: FranchiseUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     franchise = await franchise_service.update_franchise(db, franchise_id, user.org_id, data)
     if not franchise:

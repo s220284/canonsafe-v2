@@ -15,6 +15,9 @@ import Taxonomy from './pages/Taxonomy'
 import Exemplars from './pages/Exemplars'
 import Improvement from './pages/Improvement'
 import APM from './pages/APM'
+import ReviewQueue from './pages/ReviewQueue'
+import DriftMonitor from './pages/DriftMonitor'
+import Consent from './pages/Consent'
 import Settings from './pages/Settings'
 import UserManual from './pages/UserManual'
 
@@ -40,12 +43,15 @@ export default function App() {
       <Route path="/franchises/:id/health" element={<ProtectedRoute><FranchiseHealth /></ProtectedRoute>} />
       <Route path="/critics" element={<ProtectedRoute><Critics /></ProtectedRoute>} />
       <Route path="/evaluations" element={<ProtectedRoute><Evaluations /></ProtectedRoute>} />
+      <Route path="/reviews" element={<ProtectedRoute><ReviewQueue /></ProtectedRoute>} />
       <Route path="/test-suites" element={<ProtectedRoute><TestSuites /></ProtectedRoute>} />
       <Route path="/certifications" element={<ProtectedRoute><Certifications /></ProtectedRoute>} />
       <Route path="/taxonomy" element={<ProtectedRoute><Taxonomy /></ProtectedRoute>} />
       <Route path="/exemplars" element={<ProtectedRoute><Exemplars /></ProtectedRoute>} />
+      <Route path="/drift" element={<ProtectedRoute><DriftMonitor /></ProtectedRoute>} />
       <Route path="/improvement" element={<ProtectedRoute><Improvement /></ProtectedRoute>} />
       <Route path="/apm" element={<ProtectedRoute><APM /></ProtectedRoute>} />
+      <Route path="/consent" element={<ProtectedRoute><Consent /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/manual" element={<ProtectedRoute><UserManual /></ProtectedRoute>} />
     </Routes>

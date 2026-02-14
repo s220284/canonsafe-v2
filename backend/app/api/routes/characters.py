@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from app.core.auth import get_current_user
+from app.core.rbac import require_editor
 from app.core.database import get_db
-from app.models.core import User
+from app.models.core import User, CharacterCard
 from app.schemas.characters import (
     CharacterCardCreate, CharacterCardUpdate, CharacterCardOut,
     CardVersionCreate, CardVersionOut,
@@ -21,18 +23,34 @@ router = APIRouter()
 async def create_character(
     data: CharacterCardCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     return await character_service.create_character(db, data, user.org_id)
 
 
 @router.get("", response_model=List[CharacterCardOut])
 async def list_characters(
+    response: Response,
     franchise_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await character_service.list_characters(db, user.org_id, franchise_id)
+    # Total count for pagination
+    count_q = select(func.count(CharacterCard.id)).where(CharacterCard.org_id == user.org_id)
+    if franchise_id:
+        count_q = count_q.where(CharacterCard.franchise_id == franchise_id)
+    total = (await db.execute(count_q)).scalar() or 0
+    response.headers["X-Total-Count"] = str(total)
+
+    q = select(CharacterCard).where(CharacterCard.org_id == user.org_id)
+    if franchise_id:
+        q = q.where(CharacterCard.franchise_id == franchise_id)
+    q = q.order_by(CharacterCard.is_main.desc(), CharacterCard.is_focus.desc(), CharacterCard.name)
+    q = q.offset(offset).limit(limit)
+    result = await db.execute(q)
+    return list(result.scalars().all())
 
 
 @router.get("/{character_id}", response_model=CharacterCardOut)
@@ -52,7 +70,7 @@ async def update_character(
     character_id: int,
     data: CharacterCardUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     card = await character_service.update_character(db, character_id, user.org_id, data)
     if not card:
@@ -64,7 +82,7 @@ async def update_character(
 async def delete_character(
     character_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     ok = await character_service.delete_character(db, character_id, user.org_id)
     if not ok:
@@ -79,7 +97,7 @@ async def create_version(
     character_id: int,
     data: CardVersionCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     card = await character_service.get_character(db, character_id, user.org_id)
     if not card:
@@ -101,7 +119,7 @@ async def publish_version(
     character_id: int,
     version_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     version = await character_service.publish_version(db, character_id, version_id, user.org_id)
     if not version:

@@ -250,9 +250,15 @@ CRITICS_DATA = [
             "You are a Canon Fidelity Critic for the character '{character_name}' from the franchise '{franchise_name}'.\n\n"
             "Character canon pack:\n{canon_pack}\n\n"
             "Content to evaluate:\n{content}\n\n"
-            "Score the content from 0-100 on how faithfully it represents the character's established canon. "
-            "Consider: personality accuracy, relationship accuracy, world-building consistency, backstory alignment.\n"
-            "Provide a numeric score and detailed reasoning."
+            "Evaluate this content step by step using Chain-of-Thought reasoning:\n\n"
+            "Step 1: Analyze PERSONALITY ACCURACY (weight 0.3) — Does the character act in accordance with their established personality traits?\n"
+            "Step 2: Analyze RELATIONSHIP ACCURACY (weight 0.25) — Are relationships with other characters portrayed correctly?\n"
+            "Step 3: Analyze WORLD CONSISTENCY (weight 0.25) — Is the content consistent with the established world rules?\n"
+            "Step 4: Analyze BACKSTORY ALIGNMENT (weight 0.2) — Does the content align with the character's known backstory?\n"
+            "Step 5: Identify any specific issues or strengths found during analysis.\n"
+            "Step 6: Based on all the above analysis, determine the final score (0-1) and your confidence (0.0-1.0) in that score.\n\n"
+            "Respond with JSON:\n"
+            "{\"score\": <float 0-1>, \"confidence\": <float 0.0-1.0>, \"reasoning\": \"<step-by-step explanation>\", \"flags\": [<list of issues>]}"
         ),
         "rubric": {
             "dimensions": [
@@ -275,9 +281,15 @@ CRITICS_DATA = [
             "You are a Voice Consistency Critic for the character '{character_name}'.\n\n"
             "Established voice profile:\n{voice_profile}\n\n"
             "Content to evaluate:\n{content}\n\n"
-            "Score the content from 0-100 on voice consistency. "
-            "Consider: vocabulary appropriateness, tone match, speech pattern adherence, catchphrase usage.\n"
-            "Provide a numeric score and detailed reasoning."
+            "Evaluate this content step by step using Chain-of-Thought reasoning:\n\n"
+            "Step 1: Analyze VOCABULARY LEVEL (weight 0.3) — Is the vocabulary appropriate for the character and target audience?\n"
+            "Step 2: Analyze TONE MATCH (weight 0.3) — Does the tone match the character's established voice?\n"
+            "Step 3: Analyze SPEECH PATTERNS (weight 0.25) — Are speech patterns and mannerisms consistent?\n"
+            "Step 4: Analyze CATCHPHRASE USAGE (weight 0.15) — Are catchphrases used appropriately (not forced)?\n"
+            "Step 5: Identify any specific issues or strengths found during analysis.\n"
+            "Step 6: Based on all the above analysis, determine the final score (0-1) and your confidence (0.0-1.0) in that score.\n\n"
+            "Respond with JSON:\n"
+            "{\"score\": <float 0-1>, \"confidence\": <float 0.0-1.0>, \"reasoning\": \"<step-by-step explanation>\", \"flags\": [<list of issues>]}"
         ),
         "rubric": {
             "dimensions": [
@@ -300,10 +312,16 @@ CRITICS_DATA = [
             "You are a Safety & Brand Protection Critic evaluating content for '{character_name}' from '{franchise_name}'.\n\n"
             "Safety pack:\n{safety_pack}\n\n"
             "Content to evaluate:\n{content}\n\n"
-            "Score the content from 0-100 on safety and brand protection. "
-            "This is CRITICAL — any content that is not suitable for the target audience (preschool, ages 2-6) must score very low.\n"
-            "Check for: prohibited topics, age-inappropriate language, scary themes, violence, brand damage potential.\n"
-            "Provide a numeric score and detailed reasoning. Flag any specific violations."
+            "This is CRITICAL — any content that is not suitable for the target audience (preschool, ages 2-6) must score very low.\n\n"
+            "Evaluate this content step by step using Chain-of-Thought reasoning:\n\n"
+            "Step 1: Analyze AGE APPROPRIATENESS (weight 0.35) — Is the content suitable for the target age group?\n"
+            "Step 2: Analyze PROHIBITED TOPICS (weight 0.3) — Does the content avoid all prohibited topics (violence, weapons, death, substance abuse, horror, profanity, discrimination, political content)?\n"
+            "Step 3: Analyze BRAND ALIGNMENT (weight 0.2) — Does the content align with brand values?\n"
+            "Step 4: Analyze POSITIVE MESSAGING (weight 0.15) — Does the content promote positive social behaviors?\n"
+            "Step 5: Identify any specific safety violations or strengths found during analysis.\n"
+            "Step 6: Based on all the above analysis, determine the final score (0-1) and your confidence (0.0-1.0) in that score.\n\n"
+            "Respond with JSON:\n"
+            "{\"score\": <float 0-1>, \"confidence\": <float 0.0-1.0>, \"reasoning\": \"<step-by-step explanation>\", \"flags\": [<list of violations>]}"
         ),
         "rubric": {
             "dimensions": [
@@ -326,9 +344,15 @@ CRITICS_DATA = [
             "You are a Relationship Accuracy Critic for the '{franchise_name}' franchise.\n\n"
             "Character: {character_name}\nRelationship data:\n{relationships}\n\n"
             "Content to evaluate:\n{content}\n\n"
-            "Score from 0-100 on relationship accuracy. "
-            "Consider: family dynamics, friendship portrayals, social hierarchies, character interaction patterns.\n"
-            "Provide a numeric score and detailed reasoning."
+            "Evaluate this content step by step using Chain-of-Thought reasoning:\n\n"
+            "Step 1: Analyze FAMILY DYNAMICS (weight 0.35) — Are family relationships portrayed correctly?\n"
+            "Step 2: Analyze FRIENDSHIP PORTRAYAL (weight 0.3) — Are friendships shown accurately?\n"
+            "Step 3: Analyze SOCIAL DYNAMICS (weight 0.2) — Are social interactions age-appropriate and accurate?\n"
+            "Step 4: Analyze CONFLICT RESOLUTION (weight 0.15) — Is conflict handled in a show-appropriate manner?\n"
+            "Step 5: Identify any specific issues or strengths found during analysis.\n"
+            "Step 6: Based on all the above analysis, determine the final score (0-1) and your confidence (0.0-1.0) in that score.\n\n"
+            "Respond with JSON:\n"
+            "{\"score\": <float 0-1>, \"confidence\": <float 0.0-1.0>, \"reasoning\": \"<step-by-step explanation>\", \"flags\": [<list of issues>]}"
         ),
         "rubric": {
             "dimensions": [
@@ -351,9 +375,15 @@ CRITICS_DATA = [
             "You are a Legal Compliance Critic for '{character_name}' content.\n\n"
             "Legal pack:\n{legal_pack}\n\n"
             "Content to evaluate:\n{content}\n\n"
-            "Score from 0-100 on legal compliance. "
-            "Check: IP usage rules, trademark handling, attribution presence, territory compliance, content restrictions.\n"
-            "Provide a numeric score and detailed reasoning. Flag any potential legal violations."
+            "Evaluate this content step by step using Chain-of-Thought reasoning:\n\n"
+            "Step 1: Analyze IP COMPLIANCE (weight 0.3) — Does the content comply with IP usage rules?\n"
+            "Step 2: Analyze TRADEMARK HANDLING (weight 0.25) — Are trademarks handled correctly?\n"
+            "Step 3: Analyze ATTRIBUTION (weight 0.2) — Is proper attribution included where required?\n"
+            "Step 4: Analyze CONTENT RESTRICTIONS (weight 0.25) — Does the content adhere to all stated restrictions?\n"
+            "Step 5: Identify any specific legal violations or strengths found during analysis.\n"
+            "Step 6: Based on all the above analysis, determine the final score (0-1) and your confidence (0.0-1.0) in that score.\n\n"
+            "Respond with JSON:\n"
+            "{\"score\": <float 0-1>, \"confidence\": <float 0.0-1.0>, \"reasoning\": \"<step-by-step explanation>\", \"flags\": [<list of legal violations>]}"
         ),
         "rubric": {
             "dimensions": [

@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import api from '../services/api'
 
 const nav = [
   { path: '/', label: 'Dashboard' },
@@ -7,12 +9,15 @@ const nav = [
   { path: '/franchises', label: 'Franchises' },
   { path: '/critics', label: 'Critics' },
   { path: '/evaluations', label: 'Evaluations' },
+  { path: '/reviews', label: 'Review Queue', badge: true },
   { path: '/test-suites', label: 'Test Suites' },
   { path: '/certifications', label: 'Certifications' },
   { path: '/taxonomy', label: 'Taxonomy' },
   { path: '/exemplars', label: 'Exemplars' },
+  { path: '/drift', label: 'Drift Monitor' },
   { path: '/improvement', label: 'Improvement' },
   { path: '/apm', label: 'APM' },
+  { path: '/consent', label: 'Consent' },
   { path: '/settings', label: 'Settings' },
   { path: '/manual', label: 'User Manual' },
 ]
@@ -20,6 +25,18 @@ const nav = [
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    const fetchPending = () => {
+      api.get('/reviews/stats').then((r) => {
+        setPendingCount(r.data.pending || 0)
+      }).catch(() => {})
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 30000) // refresh every 30s
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -34,11 +51,16 @@ export default function Layout({ children }) {
             <Link
               key={item.path}
               to={item.path}
-              className={`block px-4 py-2 text-sm hover:bg-gray-800 ${
+              className={`flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-800 ${
                 location.pathname === item.path ? 'bg-gray-800 text-white' : 'text-gray-300'
               }`}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.badge && pendingCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

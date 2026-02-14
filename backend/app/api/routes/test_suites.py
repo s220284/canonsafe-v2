@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.rbac import require_editor
 from app.core.database import get_db
 from app.models.core import User
 from app.schemas.test_suites import TestSuiteCreate, TestSuiteUpdate, TestSuiteOut, TestCaseCreate, TestCaseUpdate, TestCaseOut
@@ -18,7 +19,7 @@ router = APIRouter()
 async def create_suite(
     data: TestSuiteCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     return await test_suite_service.create_suite(db, data, user.org_id)
 
@@ -49,7 +50,7 @@ async def update_suite(
     suite_id: int,
     data: TestSuiteUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     suite = await test_suite_service.update_suite(db, suite_id, user.org_id, data)
     if not suite:
@@ -62,7 +63,7 @@ async def add_test_case(
     suite_id: int,
     data: TestCaseCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     suite = await test_suite_service.get_suite(db, suite_id, user.org_id)
     if not suite:
@@ -85,7 +86,7 @@ async def update_test_case(
     case_id: int,
     data: TestCaseUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     tc = await test_suite_service.update_test_case(db, case_id, data)
     if not tc:
@@ -98,7 +99,7 @@ async def delete_test_case(
     suite_id: int,
     case_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     ok = await test_suite_service.delete_test_case(db, case_id)
     if not ok:
@@ -110,7 +111,7 @@ async def delete_test_case(
 async def run_test_suite(
     suite_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_editor),
 ):
     """Execute all test cases in a suite through the evaluation pipeline."""
     from app.schemas.evaluations import EvalRequest

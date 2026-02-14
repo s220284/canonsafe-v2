@@ -76,6 +76,127 @@ async def init_db():
                 except Exception:
                     pass  # column already exists (SQLite has no IF NOT EXISTS)
 
+    # Migration: create review_items table columns if missing (idempotent)
+    async with engine.begin() as conn:
+        review_cols = [
+            ("eval_run_id", "INTEGER"),
+            ("character_id", "INTEGER"),
+            ("status", "VARCHAR(50) DEFAULT 'pending'"),
+            ("priority", "INTEGER DEFAULT 0"),
+            ("reason", "VARCHAR(255)"),
+            ("assigned_to", "INTEGER"),
+            ("assigned_at", "TIMESTAMP"),
+            ("resolved_at", "TIMESTAMP"),
+            ("resolution", "VARCHAR(50)"),
+            ("override_decision", "VARCHAR(50)"),
+            ("override_justification", "TEXT"),
+            ("reviewer_notes", "TEXT"),
+            ("org_id", "INTEGER"),
+            ("created_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in review_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE review_items ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE review_items ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: create webhook_subscriptions table columns if missing (idempotent)
+    async with engine.begin() as conn:
+        webhook_sub_cols = [
+            ("id", "INTEGER PRIMARY KEY"),
+            ("url", "VARCHAR(500) NOT NULL"),
+            ("secret", "VARCHAR(255) NOT NULL"),
+            ("events", "TEXT"),  # JSON stored as TEXT for SQLite
+            ("active", "BOOLEAN DEFAULT 1"),
+            ("description", "VARCHAR(500)"),
+            ("last_triggered_at", "TIMESTAMP"),
+            ("failure_count", "INTEGER DEFAULT 0"),
+            ("org_id", "INTEGER NOT NULL"),
+            ("created_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in webhook_sub_cols:
+            if col_name == "id":
+                continue  # skip PK — handled by create_all
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE webhook_subscriptions ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE webhook_subscriptions ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: create webhook_deliveries table columns if missing (idempotent)
+    async with engine.begin() as conn:
+        webhook_del_cols = [
+            ("id", "INTEGER PRIMARY KEY"),
+            ("subscription_id", "INTEGER NOT NULL"),
+            ("event_type", "VARCHAR(100) NOT NULL"),
+            ("payload", "TEXT"),  # JSON stored as TEXT for SQLite
+            ("status_code", "INTEGER"),
+            ("response_body", "TEXT"),
+            ("success", "BOOLEAN DEFAULT 0"),
+            ("attempts", "INTEGER DEFAULT 1"),
+            ("created_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in webhook_del_cols:
+            if col_name == "id":
+                continue  # skip PK — handled by create_all
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE webhook_deliveries ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE webhook_deliveries ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Migration: add cost tracking columns to critic_results (idempotent)
+    async with engine.begin() as conn:
+        cost_cols = [
+            ("prompt_tokens", "INTEGER"),
+            ("completion_tokens", "INTEGER"),
+            ("model_used", "VARCHAR(255)"),
+            ("estimated_cost", "REAL"),
+        ]
+        for col_name, col_type in cost_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE critic_results ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE critic_results ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
     # Backfill main characters in its own transaction
     async with engine.begin() as conn:
         await conn.execute(text(
