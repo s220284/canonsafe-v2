@@ -71,8 +71,9 @@ The database URL is built dynamically in `backend/app/core/database.py`:
 
 **Cloud Run secret mapping (critical — gets broken easily):**
 ```
-SECRET_KEY    <- GCP Secret: canonsafe-secret-key
-DB_PASS       <- GCP Secret: DB_PASSWORD
+SECRET_KEY      <- GCP Secret: canonsafe-secret-key
+DB_PASS         <- GCP Secret: DB_PASSWORD
+OPENAI_API_KEY  <- GCP Secret: OPENAI_API_KEY
 ```
 
 Do NOT map `DATABASE_URL` to the password secret. The config reads `DB_PASS` for the password.
@@ -87,7 +88,7 @@ cd backend && gcloud run deploy canonsafe-v2 \
   --project tpgpt-prod \
   --region us-east1 \
   --allow-unauthenticated \
-  --set-secrets="SECRET_KEY=canonsafe-secret-key:latest,DB_PASS=DB_PASSWORD:latest" \
+  --set-secrets="SECRET_KEY=canonsafe-secret-key:latest,DB_PASS=DB_PASSWORD:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest" \
   --set-env-vars="^||^CLOUD_SQL_CONNECTION_NAME=tpgpt-prod:us-east1:tpg-intel-db||DB_USER=postgres||DB_NAME=canonsafe||ALLOWED_ORIGINS=https://frontend-beta-ten-75.vercel.app,http://localhost:3000,http://localhost:5173" \
   --add-cloudsql-instances=tpgpt-prod:us-east1:tpg-intel-db \
   --memory=512Mi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300
@@ -352,6 +353,7 @@ The `seed_enrich.py` route file (kept but unregistered) contains a complete temp
 | Cloud SQL Database | `canonsafe` |
 | Secret: DB Password | `DB_PASSWORD` |
 | Secret: App Secret Key | `canonsafe-secret-key` |
+| Secret: OpenAI API Key | `OPENAI_API_KEY` |
 | Artifact Registry | `us-east1-docker.pkg.dev/tpgpt-prod/canonsafe-repo/` |
 | Region | `us-east1` |
 | Service Account (compute) | `516559856008-compute@developer.gserviceaccount.com` |
@@ -386,7 +388,7 @@ Edit `backend/app/models/core.py` to add the column. Then add an idempotent migr
 ### Redeploy backend
 
 ```bash
-cd backend && gcloud run deploy canonsafe-v2 --source . --project tpgpt-prod --region us-east1 --allow-unauthenticated --set-secrets="SECRET_KEY=canonsafe-secret-key:latest,DB_PASS=DB_PASSWORD:latest" --set-env-vars="^||^CLOUD_SQL_CONNECTION_NAME=tpgpt-prod:us-east1:tpg-intel-db||DB_USER=postgres||DB_NAME=canonsafe||ALLOWED_ORIGINS=https://frontend-beta-ten-75.vercel.app,http://localhost:3000,http://localhost:5173" --add-cloudsql-instances=tpgpt-prod:us-east1:tpg-intel-db --memory=512Mi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300
+cd backend && gcloud run deploy canonsafe-v2 --source . --project tpgpt-prod --region us-east1 --allow-unauthenticated --set-secrets="SECRET_KEY=canonsafe-secret-key:latest,DB_PASS=DB_PASSWORD:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest" --set-env-vars="^||^CLOUD_SQL_CONNECTION_NAME=tpgpt-prod:us-east1:tpg-intel-db||DB_USER=postgres||DB_NAME=canonsafe||ALLOWED_ORIGINS=https://frontend-beta-ten-75.vercel.app,http://localhost:3000,http://localhost:5173" --add-cloudsql-instances=tpgpt-prod:us-east1:tpg-intel-db --memory=512Mi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300
 ```
 
 ### Check deployment logs
