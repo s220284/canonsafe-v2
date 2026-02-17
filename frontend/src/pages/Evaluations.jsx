@@ -14,6 +14,7 @@ export default function Evaluations() {
   const [detail, setDetail] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [c2paOpen, setC2paOpen] = useState(false)
+  const [expandedCritic, setExpandedCritic] = useState(null)
 
   const exportCSV = async () => {
     try {
@@ -150,26 +151,105 @@ export default function Evaluations() {
           </div>
         )}
 
+        {/* Brand Analysis */}
+        {res?.analysis_summary && (
+          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 border-b border-gray-200">
+              <p className="text-sm font-semibold text-gray-700">Brand Analysis</p>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Strengths */}
+              {res.analysis_summary.strengths?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-green-700 mb-2 uppercase tracking-wide">What Works</p>
+                  <div className="space-y-1.5">
+                    {res.analysis_summary.strengths.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-green-500 mt-0.5 flex-shrink-0">&#10003;</span>
+                        <div><span className="font-medium text-gray-800">{s.point}</span>{s.detail && <span className="text-gray-500"> — {s.detail}</span>}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Issues */}
+              {res.analysis_summary.issues?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 mb-2 uppercase tracking-wide">What Is Off or Risky</p>
+                  <div className="space-y-1.5">
+                    {res.analysis_summary.issues.map((issue, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <span className={`mt-0.5 flex-shrink-0 ${issue.severity === 'high' ? 'text-red-500' : 'text-amber-500'}`}>&#9888;</span>
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-800">{issue.point}</span>
+                          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                            issue.severity === 'high' ? 'bg-red-100 text-red-700' :
+                            issue.severity === 'medium' ? 'bg-amber-100 text-amber-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>{issue.severity}</span>
+                          {issue.detail && <p className="text-gray-500 mt-0.5">{issue.detail}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Strategic Recommendation */}
+              {res.analysis_summary.summary && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Strategic Recommendation</p>
+                  <div className="bg-blue-50 border border-blue-100 rounded p-3 text-sm text-blue-900">
+                    {res.analysis_summary.summary}
+                  </div>
+                </div>
+              )}
+
+              {/* Improved Version */}
+              {res.analysis_summary.improved_version && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-700 mb-2 uppercase tracking-wide">Suggested Improved Version</p>
+                  <div className="bg-purple-50 border border-purple-100 rounded p-3 text-sm text-purple-900 whitespace-pre-wrap">
+                    {res.analysis_summary.improved_version}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Critic scores */}
         {res?.critic_results?.length > 0 && (
           <div className="mb-4">
-            <p className="text-xs font-medium text-gray-500 mb-2">Critic Scores</p>
-            <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 mb-2">Critic Scores <span className="text-gray-400 font-normal">(click to expand reasoning)</span></p>
+            <div className="space-y-1">
               {res.critic_results.map((cr) => (
-                <div key={cr.id} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 w-44 truncate flex-shrink-0" title={cr.model_used || ''}>
-                    {criticMap[cr.critic_id] || criticMap[String(cr.critic_id)] || `Critic #${cr.critic_id}`}
-                  </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
-                    <div className={`h-4 rounded-full ${barColor(cr.score)}`}
-                      style={{ width: `${Math.min(cr.score, 100)}%` }} />
-                  </div>
-                  <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{cr.score.toFixed(1)}</span>
-                  <span className="text-xs text-gray-400 w-14 text-right">{cr.latency_ms}ms</span>
-                  {cr.estimated_cost != null && cr.estimated_cost > 0 && (
-                    <span className="text-xs text-gray-300 w-16 text-right" title={`${cr.prompt_tokens || 0}+${cr.completion_tokens || 0} tokens`}>
-                      ${cr.estimated_cost.toFixed(4)}
+                <div key={cr.id}>
+                  <div
+                    className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded px-1 py-1 -mx-1 transition-colors"
+                    onClick={() => setExpandedCritic(expandedCritic === cr.id ? null : cr.id)}
+                  >
+                    <span className={`text-xs text-gray-400 w-4 transition-transform ${expandedCritic === cr.id ? 'rotate-90' : ''}`}>&#9654;</span>
+                    <span className="text-xs text-gray-500 w-40 truncate flex-shrink-0" title={cr.model_used || ''}>
+                      {criticMap[cr.critic_id] || criticMap[String(cr.critic_id)] || `Critic #${cr.critic_id}`}
                     </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+                      <div className={`h-4 rounded-full ${barColor(cr.score)}`}
+                        style={{ width: `${Math.min(cr.score, 100)}%` }} />
+                    </div>
+                    <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{cr.score.toFixed(1)}</span>
+                    <span className="text-xs text-gray-400 w-14 text-right">{cr.latency_ms}ms</span>
+                    {cr.estimated_cost != null && cr.estimated_cost > 0 && (
+                      <span className="text-xs text-gray-300 w-16 text-right" title={`${cr.prompt_tokens || 0}+${cr.completion_tokens || 0} tokens`}>
+                        ${cr.estimated_cost.toFixed(4)}
+                      </span>
+                    )}
+                  </div>
+                  {expandedCritic === cr.id && cr.reasoning && (
+                    <div className="ml-8 mt-1 mb-2 p-3 bg-gray-50 border border-gray-100 rounded text-xs text-gray-600 whitespace-pre-wrap">
+                      {cr.reasoning}
+                    </div>
                   )}
                 </div>
               ))}

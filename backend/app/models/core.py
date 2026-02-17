@@ -279,6 +279,7 @@ class EvalResult(Base):
     flags = Column(JSON, default=list)
     recommendations = Column(JSON, default=list)
     critic_agreement = Column(Float, nullable=True)  # 1.0 = perfect agreement, 0.0 = max disagreement
+    analysis_summary = Column(JSON, nullable=True)  # synthesized brand analysis from all critic feedback
     created_at = Column(DateTime, default=utcnow)
 
     eval_run = relationship("EvalRun", back_populates="results")

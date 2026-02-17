@@ -330,6 +330,23 @@ async def init_db():
             except Exception:
                 pass
 
+    # Migration: add analysis_summary column to eval_results (idempotent)
+    async with engine.begin() as conn:
+        if is_postgres:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE eval_results ADD COLUMN IF NOT EXISTS analysis_summary JSON"
+                ))
+            except Exception:
+                pass
+        else:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE eval_results ADD COLUMN analysis_summary TEXT"
+                ))
+            except Exception:
+                pass
+
     # Backfill main characters in its own transaction
     async with engine.begin() as conn:
         await conn.execute(text(

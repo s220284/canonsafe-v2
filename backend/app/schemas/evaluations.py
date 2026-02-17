@@ -64,6 +64,7 @@ class EvalResultOut(BaseModel):
     flags: list
     recommendations: list
     critic_agreement: Optional[float] = None
+    analysis_summary: Optional[dict] = None
     critic_results: List[CriticResultOut] = []
 
     class Config:

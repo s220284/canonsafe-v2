@@ -46,6 +46,7 @@ async def run_evaluation(
             flags=result.flags,
             recommendations=result.recommendations,
             critic_agreement=result.critic_agreement,
+            analysis_summary=result.analysis_summary,
             critic_results=critic_results,
         )
 
@@ -196,6 +197,7 @@ async def get_eval_run(
             flags=result.flags,
             recommendations=result.recommendations,
             critic_agreement=result.critic_agreement,
+            analysis_summary=result.analysis_summary,
             critic_results=critic_results,
         )
 

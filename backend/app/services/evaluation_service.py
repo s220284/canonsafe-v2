@@ -156,6 +156,54 @@ def _determine_decision(score: float) -> str:
         return "block"
 
 
+async def _synthesize_analysis(
+    critic_results: List[dict],
+    content: str,
+    character_name: str,
+    overall_score: float,
+    decision: str,
+) -> Optional[dict]:
+    """Synthesize all critic feedback into a structured brand analysis."""
+    try:
+        from app.core.llm import call_llm_json
+
+        # Build critic feedback summary for the synthesis prompt
+        critic_summary_lines = []
+        for r in critic_results:
+            name = r.get("critic_name", f"Critic {r['critic_id']}")
+            critic_summary_lines.append(
+                f"- {name}: score={r['score']:.1f}/100, reasoning: {r.get('reasoning', 'N/A')[:300]}"
+            )
+        critic_feedback = "\n".join(critic_summary_lines)
+
+        system_prompt = (
+            "You are a brand compliance analyst for character IP governance. "
+            "Given critic evaluation feedback for AI-generated content, produce a structured brand analysis. "
+            "Respond ONLY with valid JSON matching this schema:\n"
+            "{\n"
+            '  "strengths": [{"point": "short title", "detail": "explanation"}],\n'
+            '  "issues": [{"point": "short title", "detail": "explanation", "severity": "low|medium|high"}],\n'
+            '  "summary": "one-paragraph strategic recommendation",\n'
+            '  "improved_version": "rewritten content that fixes issues, or null if score >= 90"\n'
+            "}\n"
+            "Be specific and actionable. Reference the character by name."
+        )
+
+        user_prompt = (
+            f"Character: {character_name}\n"
+            f"Overall Score: {overall_score:.1f}/100\n"
+            f"Decision: {decision}\n\n"
+            f"Content Evaluated:\n{content[:1000]}\n\n"
+            f"Critic Feedback:\n{critic_feedback}\n\n"
+            "Produce the brand analysis JSON."
+        )
+
+        analysis = await call_llm_json(system_prompt, user_prompt)
+        return analysis
+    except Exception:
+        return None
+
+
 async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: List[dict]) -> EvalRun:
     overall_score = _weighted_average(critic_results) if critic_results else 0.0
     decision = _determine_decision(overall_score)
@@ -195,6 +243,19 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
         if std_dev > 0.3:
             all_flags.append("critic_disagreement")
 
+    # Synthesize brand analysis from critic feedback
+    analysis_summary = None
+    if critic_results:
+        # Look up character name
+        char_result = await db.execute(
+            select(CharacterCard.name).where(CharacterCard.id == eval_run.character_id)
+        )
+        character_name = char_result.scalar_one_or_none() or f"Character #{eval_run.character_id}"
+        content = eval_run.input_content.get("content", "") if isinstance(eval_run.input_content, dict) else str(eval_run.input_content)
+        analysis_summary = await _synthesize_analysis(
+            critic_results, content, character_name, overall_score, decision
+        )
+
     result = EvalResult(
         eval_run_id=eval_run.id,
         weighted_score=overall_score,
@@ -202,6 +263,7 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
         flags=all_flags,
         recommendations=_generate_recommendations(critic_results, decision),
         critic_agreement=critic_agreement,
+        analysis_summary=analysis_summary,
     )
     db.add(result)
     await db.flush()
