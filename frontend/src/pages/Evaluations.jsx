@@ -81,18 +81,23 @@ export default function Evaluations() {
     block: 'bg-red-200 text-red-800', 'sampled-pass': 'bg-blue-100 text-blue-700',
   }[d] || 'bg-gray-100')
 
+  // API returns scores on 0-1 scale; UI displays 0-100
+  const pct = (s) => (s == null ? null : s <= 1 ? s * 100 : s)
+
   const scoreColor = (s) => {
-    if (s == null) return 'text-gray-400'
-    if (s >= 90) return 'text-green-600'
-    if (s >= 70) return 'text-yellow-600'
-    if (s >= 50) return 'text-orange-600'
+    const v = pct(s)
+    if (v == null) return 'text-gray-400'
+    if (v >= 90) return 'text-green-600'
+    if (v >= 70) return 'text-yellow-600'
+    if (v >= 50) return 'text-orange-600'
     return 'text-red-600'
   }
 
   const barColor = (s) => {
-    if (s >= 90) return 'bg-green-400'
-    if (s >= 70) return 'bg-yellow-400'
-    if (s >= 50) return 'bg-orange-400'
+    const v = pct(s)
+    if (v >= 90) return 'bg-green-400'
+    if (v >= 70) return 'bg-yellow-400'
+    if (v >= 50) return 'bg-orange-400'
     return 'bg-red-400'
   }
 
@@ -111,7 +116,7 @@ export default function Evaluations() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div className="bg-gray-50 rounded p-2">
             <p className="text-xs text-gray-500">Score</p>
-            <p className={`text-xl font-bold ${scoreColor(run.overall_score)}`}>{run.overall_score?.toFixed(1) ?? 'N/A'}</p>
+            <p className={`text-xl font-bold ${scoreColor(run.overall_score)}`}>{run.overall_score != null ? pct(run.overall_score).toFixed(1) : 'N/A'}</p>
           </div>
           <div className="bg-gray-50 rounded p-2">
             <p className="text-xs text-gray-500">Decision</p>
@@ -236,9 +241,9 @@ export default function Evaluations() {
                     </span>
                     <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
                       <div className={`h-4 rounded-full ${barColor(cr.score)}`}
-                        style={{ width: `${Math.min(cr.score, 100)}%` }} />
+                        style={{ width: `${Math.min(pct(cr.score), 100)}%` }} />
                     </div>
-                    <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{cr.score.toFixed(1)}</span>
+                    <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(cr.score)}`}>{pct(cr.score).toFixed(1)}</span>
                     <span className="text-xs text-gray-400 w-14 text-right">{cr.latency_ms}ms</span>
                     {cr.estimated_cost != null && cr.estimated_cost > 0 && (
                       <span className="text-xs text-gray-300 w-16 text-right" title={`${cr.prompt_tokens || 0}+${cr.completion_tokens || 0} tokens`}>
@@ -267,9 +272,9 @@ export default function Evaluations() {
                   <span className="text-xs text-gray-500 w-44 truncate flex-shrink-0">{criticMap[slug] || slug}</span>
                   <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
                     <div className={`h-4 rounded-full ${barColor(score)}`}
-                      style={{ width: `${Math.min(score, 100)}%` }} />
+                      style={{ width: `${Math.min(pct(score), 100)}%` }} />
                   </div>
-                  <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(score)}`}>{score.toFixed(1)}</span>
+                  <span className={`text-sm font-mono font-bold w-12 text-right ${scoreColor(score)}`}>{pct(score).toFixed(1)}</span>
                 </div>
               ))}
             </div>
@@ -308,7 +313,7 @@ export default function Evaluations() {
                   {[
                     { label: 'CanonSafe Version', key: 'canonsafe_version' },
                     { label: 'Eval Run ID', key: 'eval_run_id' },
-                    { label: 'Overall Score', key: 'overall_score', fmt: (v) => v != null ? Number(v).toFixed(2) : 'N/A' },
+                    { label: 'Overall Score', key: 'overall_score', fmt: (v) => v != null ? pct(Number(v)).toFixed(1) : 'N/A' },
                     { label: 'Decision', key: 'decision' },
                     { label: 'Character ID', key: 'character_id' },
                     { label: 'Evaluated At', key: 'evaluated_at', fmt: (v) => v ? new Date(v).toLocaleString() : 'N/A' },
@@ -425,7 +430,7 @@ export default function Evaluations() {
                 <td className="px-4 py-2 text-gray-400">{r.id}</td>
                 <td className="px-4 py-2 font-medium">{charMap[r.character_id] || `#${r.character_id}`}</td>
                 <td className={`px-4 py-2 font-mono font-bold ${scoreColor(r.overall_score)}`}>
-                  {r.overall_score?.toFixed(1) ?? '-'}
+                  {r.overall_score != null ? pct(r.overall_score).toFixed(1) : '-'}
                 </td>
                 <td className="px-4 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded ${decisionColor(r.decision)}`}>{r.decision}</span>
