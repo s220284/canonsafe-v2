@@ -79,6 +79,7 @@ async def _load_run_and_result(db: AsyncSession, run_id: int, org_id: int):
             critic_scores=result.critic_scores,
             flags=result.flags,
             recommendations=result.recommendations,
+            critic_agreement=result.critic_agreement,
             critic_results=critic_results,
         )
 

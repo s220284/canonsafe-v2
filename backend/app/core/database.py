@@ -313,6 +313,23 @@ async def init_db():
                 except Exception:
                     pass
 
+    # Migration: add critic_agreement column to eval_results (idempotent)
+    async with engine.begin() as conn:
+        if is_postgres:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE eval_results ADD COLUMN IF NOT EXISTS critic_agreement FLOAT"
+                ))
+            except Exception:
+                pass
+        else:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE eval_results ADD COLUMN critic_agreement FLOAT"
+                ))
+            except Exception:
+                pass
+
     # Backfill main characters in its own transaction
     async with engine.begin() as conn:
         await conn.execute(text(

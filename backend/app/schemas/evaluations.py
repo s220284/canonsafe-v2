@@ -22,6 +22,7 @@ class EvalRunOut(BaseModel):
     profile_id: Optional[int]
     franchise_id: Optional[int]
     agent_id: Optional[str]
+    input_content: Optional[dict] = None
     modality: str
     status: str
     tier: str
@@ -62,6 +63,7 @@ class EvalResultOut(BaseModel):
     critic_scores: dict
     flags: list
     recommendations: list
+    critic_agreement: Optional[float] = None
     critic_results: List[CriticResultOut] = []
 
     class Config:

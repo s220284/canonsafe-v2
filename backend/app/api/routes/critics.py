@@ -54,31 +54,6 @@ async def list_critics(
     return list(result.scalars().all())
 
 
-@router.get("/{critic_id}", response_model=CriticOut)
-async def get_critic(
-    critic_id: int,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    critic = await critic_service.get_critic(db, critic_id)
-    if not critic:
-        raise HTTPException(status_code=404, detail="Critic not found")
-    return critic
-
-
-@router.patch("/{critic_id}", response_model=CriticOut)
-async def update_critic(
-    critic_id: int,
-    data: CriticUpdate,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_admin),
-):
-    critic = await critic_service.update_critic(db, critic_id, data)
-    if not critic:
-        raise HTTPException(status_code=404, detail="Critic not found")
-    return critic
-
-
 # ─── Critic Configurations ─────────────────────────────────────
 
 @router.post("/configs", response_model=CriticConfigOut)
@@ -117,3 +92,30 @@ async def list_profiles(
     user: User = Depends(get_current_user),
 ):
     return await critic_service.list_profiles(db, user.org_id)
+
+
+# ─── Individual Critic (must be after /configs and /profiles) ──
+
+@router.get("/{critic_id}", response_model=CriticOut)
+async def get_critic(
+    critic_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    critic = await critic_service.get_critic(db, critic_id)
+    if not critic:
+        raise HTTPException(status_code=404, detail="Critic not found")
+    return critic
+
+
+@router.patch("/{critic_id}", response_model=CriticOut)
+async def update_critic(
+    critic_id: int,
+    data: CriticUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    critic = await critic_service.update_critic(db, critic_id, data)
+    if not critic:
+        raise HTTPException(status_code=404, detail="Critic not found")
+    return critic
