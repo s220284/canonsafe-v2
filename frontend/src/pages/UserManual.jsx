@@ -164,6 +164,14 @@ const TOC = [
     { id: 'feat-exemplars', label: 'Exemplars' },
     { id: 'feat-improvement', label: 'Improvement' },
     { id: 'feat-apm', label: 'APM' },
+    { id: 'feat-compare', label: 'Compare' },
+    { id: 'feat-reviews', label: 'Review Queue' },
+    { id: 'feat-drift', label: 'Drift Monitor' },
+    { id: 'feat-redteam', label: 'Red Team' },
+    { id: 'feat-abtesting', label: 'A/B Testing' },
+    { id: 'feat-judges', label: 'Judges' },
+    { id: 'feat-multimodal', label: 'Multi-Modal' },
+    { id: 'feat-consent', label: 'Consent' },
     { id: 'feat-settings', label: 'Settings' },
   ]},
   { id: 'decisions', label: 'Decision Categories' },
@@ -434,19 +442,31 @@ export default function UserManual() {
                 The automated decision: pass, regenerate, quarantine, escalate, or block. Based on the overall score
                 plus any flag-based overrides from individual critics.
               </InfoCard>
-              <InfoCard title="Critic Scores" color="purple">
+              <InfoCard title="Brand Analysis" color="purple">
+                An AI-synthesized analysis that translates raw critic scores into actionable insights. Contains four sections:
+                <strong> What Works</strong> (strengths with green checkmarks), <strong>What Is Off or Risky</strong> (issues
+                with severity badges), a <strong>Strategic Recommendation</strong>, and optionally a
+                <strong> Suggested Improved Version</strong> of the content that fixes identified issues.
+              </InfoCard>
+              <InfoCard title="Critic Scores (Expandable)" color="indigo">
                 Individual scores from each configured critic (Canon Fidelity, Voice Consistency, Safety, etc.).
                 Visualized as colored bars — green (90+), yellow (70-89), orange (50-69), red (below 50).
-                These show exactly where content succeeds or fails.
+                <strong> Click any critic bar to expand</strong> its full LLM reasoning text underneath.
               </InfoCard>
               <InfoCard title="Flags & Recommendations" color="orange">
                 Specific issues flagged by critics (e.g., "out-of-character dialogue", "age-inappropriate content")
                 and actionable recommendations for improvement. Share these with the AI engineering team.
               </InfoCard>
+              <InfoCard title="C2PA Content Credentials" color="gray">
+                Collapsible provenance metadata embedded in the evaluation record. Includes CanonSafe version,
+                evaluation run ID, overall score, decision, character ID, and timestamp. Used for tamper-evident
+                audit trails that travel with the content downstream.
+              </InfoCard>
             </div>
             <Tip>
-              Click any row in the evaluation history table to expand its full details. This is the fastest
-              way to audit past evaluations and identify patterns across multiple runs.
+              Click any row in the evaluation history table to expand its full details. Click any critic score bar
+              to reveal the detailed LLM reasoning behind that score. The Brand Analysis section provides the
+              most value for demos and stakeholder communication — it translates numbers into narrative.
             </Tip>
           </SubSection>
         </Section>
@@ -822,13 +842,38 @@ Example with 3 critics:
               The Evaluations page is the operational center for running and reviewing evaluations. It has three
               sections: the evaluation form (top), the current result (middle), and the history table (bottom).
             </p>
+            <InfoCard title="Running an Evaluation" color="blue">
+              <ul className="list-disc list-inside space-y-1">
+                <li>Click "New Evaluation" to open the form</li>
+                <li>Select a character (Main characters appear first, then Focus, then Others)</li>
+                <li>Choose modality (text, image, audio, video) and optionally specify a territory</li>
+                <li>Paste the AI-generated content and click "Run Evaluation"</li>
+                <li>Results appear immediately above the history table with full detail</li>
+              </ul>
+            </InfoCard>
+            <InfoCard title="Brand Analysis" color="purple">
+              Every new evaluation generates an AI-synthesized Brand Analysis that combines all critic feedback
+              into a structured, human-readable report. This section appears between the flags and critic scores:
+              <ul className="list-disc list-inside space-y-1 mt-2">
+                <li><strong>What Works</strong> — strengths identified across critics, shown with green checkmarks</li>
+                <li><strong>What Is Off or Risky</strong> — issues with severity badges (low/medium/high)</li>
+                <li><strong>Strategic Recommendation</strong> — a one-paragraph actionable summary</li>
+                <li><strong>Suggested Improved Version</strong> — a rewritten version of the content that fixes identified issues (only shown when issues exist)</li>
+              </ul>
+              <p className="mt-2 text-xs">Note: Evaluations run before this feature was added will not show the Brand Analysis section.</p>
+            </InfoCard>
+            <InfoCard title="Expandable Critic Reasoning" color="indigo">
+              Each critic score bar is clickable. Click a critic to expand its full LLM reasoning text —
+              the detailed explanation of why the critic assigned that score, what it found in the content,
+              and what specific aspects of the character card it compared against. Click again to collapse.
+            </InfoCard>
             <InfoCard title="Reading the History Table" color="gray">
               <ul className="list-disc list-inside space-y-1">
                 <li>Scores are color-coded: green (90+), yellow (70-89), orange (50-69), red (below 50)</li>
                 <li>Click any row to expand the full evaluation detail with critic breakdown</li>
                 <li>The "Decision" column shows the outcome as a colored badge</li>
                 <li>Use "Agent" column to filter by which AI system produced the content</li>
-                <li>Sort by date to see the most recent evaluations first</li>
+                <li>Export evaluations as CSV using the "Export CSV" button</li>
               </ul>
             </InfoCard>
           </SubSection>
@@ -949,6 +994,146 @@ Example with 3 critics:
                 <li>The eval run ID auto-populates in the Enforce form so you can quickly test enforcement</li>
                 <li>Choose an enforcement action (regenerate, quarantine, escalate, block, override) and click "Enforce"</li>
                 <li>Use this page to test your API integration before deploying to production</li>
+              </ul>
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-compare" title="Compare">
+            <p className="text-gray-700 mb-3">
+              The Compare page enables pairwise comparison of evaluation results across three modes:
+            </p>
+            <InfoCard title="Compare Two Runs" color="blue">
+              Select two existing evaluation run IDs and compare them side-by-side. See score differences
+              per critic, flag differences, and whether decisions match. Useful for comparing the same content
+              evaluated at different times or with different profiles.
+            </InfoCard>
+            <InfoCard title="Head-to-Head Characters" color="green">
+              Submit the same content and evaluate it against two different characters simultaneously.
+              Reveals how content performs across characters — for example, the same dialogue may pass for
+              one character but fail for another.
+            </InfoCard>
+            <InfoCard title="Version Comparison" color="purple">
+              Evaluate the same content against two different card versions of the same character.
+              Shows exactly how card changes affect evaluation outcomes — essential for validating
+              card improvements before publishing.
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-reviews" title="Review Queue">
+            <p className="text-gray-700 mb-3">
+              The Review Queue is the human-in-the-loop (HITL) interface where reviewers examine flagged content.
+              Evaluations that receive "quarantine" or "escalate" decisions are automatically queued here.
+            </p>
+            <InfoCard title="Review Workflow" color="yellow">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Claim</strong> — assign a pending review item to yourself</li>
+                <li><strong>Examine</strong> — view the full evaluation detail, critic scores, and reasoning</li>
+                <li><strong>Resolve</strong> — approve the original decision, override it (e.g., upgrade "quarantine" to "pass"), or send for re-evaluation</li>
+                <li>All resolutions require justification and are logged with a full audit trail</li>
+              </ul>
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-drift" title="Drift Monitor">
+            <p className="text-gray-700 mb-3">
+              Drift Monitor tracks whether evaluation scores are gradually deviating from established baselines.
+              Drift often indicates that the AI model being evaluated has changed behavior over time.
+            </p>
+            <InfoCard title="How Drift Detection Works" color="orange">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Baselines</strong> — establish a normal scoring range per character + critic combination</li>
+                <li><strong>Z-scores</strong> — new evaluations are compared against baseline mean and standard deviation</li>
+                <li><strong>Severity levels</strong> — info (z&lt;1), warning (1-2), high (2-3), critical (z&gt;=3)</li>
+                <li>Drift events are logged and can be acknowledged once investigated</li>
+              </ul>
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-redteam" title="Red Team">
+            <p className="text-gray-700 mb-3">
+              The Red Team page runs adversarial robustness testing against characters. It generates attack
+              probes designed to break character, extract knowledge, or bypass safety guardrails.
+            </p>
+            <InfoCard title="Attack Categories" color="red">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Persona Break</strong> — attempts to make the character act out of character</li>
+                <li><strong>Knowledge Probe</strong> — tries to extract information the character shouldn't know</li>
+                <li><strong>Safety Bypass</strong> — attempts to generate prohibited content</li>
+                <li><strong>Boundary Test</strong> — pushes edge cases in content guidelines</li>
+                <li><strong>Context Manipulation</strong> — uses misleading context to alter character behavior</li>
+              </ul>
+            </InfoCard>
+            <InfoCard title="Resilience Score" color="gray">
+              After a session completes, a resilience score is calculated: 1.0 minus (successful attacks / total probes).
+              A score of 1.0 means the character withstood all adversarial probes. Lower scores indicate areas
+              where the character card or critics need strengthening.
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-abtesting" title="A/B Testing">
+            <p className="text-gray-700 mb-3">
+              The A/B Testing page creates experiments that compare two evaluation configurations with
+              statistical rigor. Use it to determine whether changing critic weights, prompt templates,
+              or models actually improves evaluation quality.
+            </p>
+            <InfoCard title="Experiment Types" color="blue">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Critic Weight</strong> — compare different weight configurations</li>
+                <li><strong>Prompt Template</strong> — test revised critic prompt templates</li>
+                <li><strong>Model</strong> — compare LLM model performance (e.g., GPT-4o-mini vs Claude)</li>
+                <li><strong>Profile</strong> — compare entire evaluation profiles end-to-end</li>
+              </ul>
+            </InfoCard>
+            <InfoCard title="Statistical Analysis" color="green">
+              Results include z-test for pass rate proportions and Welch's t-test for score means.
+              The experiment reports a p-value and declares a winner when statistical significance is reached,
+              or "inconclusive" when the sample size is insufficient.
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-judges" title="Judges">
+            <p className="text-gray-700 mb-3">
+              The Judges page is a registry for custom LLM judge models. While CanonSafe defaults to
+              GPT-4o-mini with Anthropic fallback, you can register additional judge models for
+              specialized evaluation needs.
+            </p>
+            <InfoCard title="Judge Properties" color="indigo">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Model Type</strong> — OpenAI-compatible, Anthropic, HuggingFace, or custom endpoint</li>
+                <li><strong>Capabilities</strong> — which modalities the judge supports (text, image, audio, video)</li>
+                <li><strong>Pricing</strong> — input/output cost per million tokens for cost tracking</li>
+                <li><strong>Health Status</strong> — monitored automatically (healthy, degraded, down)</li>
+              </ul>
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-multimodal" title="Multi-Modal Evaluation">
+            <p className="text-gray-700 mb-3">
+              The Multi-Modal page handles evaluation of non-text content: images, audio, and video.
+              Each modality uses specialized evaluation pipelines.
+            </p>
+            <InfoCard title="Supported Modalities" color="purple">
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Image</strong> — evaluated using GPT-4o vision against the Visual Identity Pack (art style, color palette, distinguishing features)</li>
+                <li><strong>Audio</strong> — evaluated against the Audio Identity Pack (tone, speech style, catchphrases)</li>
+                <li><strong>Video</strong> — combined visual + audio evaluation with frame-by-frame analysis</li>
+              </ul>
+            </InfoCard>
+          </SubSection>
+
+          <SubSection id="feat-consent" title="Consent">
+            <p className="text-gray-700 mb-3">
+              The Consent page manages performer consent verification records. Every evaluation checks
+              consent as a hard gate — if valid consent doesn't exist, evaluation is blocked immediately.
+            </p>
+            <InfoCard title="Consent Checks" color="red">
+              Five verification checks are performed:
+              <ul className="list-disc list-inside space-y-1 mt-2">
+                <li><strong>Temporal</strong> — is the consent currently valid (not expired)?</li>
+                <li><strong>Territorial</strong> — does consent cover the requested territory?</li>
+                <li><strong>Modality</strong> — does consent cover the requested modality (text, image, audio, video)?</li>
+                <li><strong>Usage</strong> — does the intended use fall within consent restrictions?</li>
+                <li><strong>Strike</strong> — is there an active performer strike that suspends consent?</li>
               </ul>
             </InfoCard>
           </SubSection>
@@ -1675,10 +1860,12 @@ def generate_and_evaluate(character_id, prompt, agent_id="my-agent"):
               </thead>
               <tbody className="divide-y">
                 {[
+                  ['A/B Experiment', 'A controlled test comparing two evaluation configurations with statistical significance analysis.'],
                   ['Agent', 'An AI system that generates content featuring licensed characters.'],
                   ['Agent Certification', 'The process of validating that an agent can reliably produce in-character content by running it against a test suite.'],
                   ['Anti-Canon', 'Things a character would NEVER do or say. Critical for catching violations.'],
                   ['APM', 'Agentic Pipeline Middleware — the REST API for integrating CanonSafe into agent pipelines.'],
+                  ['Brand Analysis', 'An AI-synthesized summary of evaluation results that translates critic scores into strengths, issues, strategic recommendations, and suggested content improvements.'],
                   ['C2PA', 'Coalition for Content Provenance and Authenticity — an open standard for content provenance metadata.'],
                   ['Canon Pack', 'The core identity pack defining personality, backstory, speech patterns, relationships, and canonical facts.'],
                   ['Character Card', 'The master identity document for a fictional character, containing all 5 packs.'],
@@ -1686,6 +1873,7 @@ def generate_and_evaluate(character_id, prompt, agent_id="my-agent"):
                   ['Consent Verification', 'Legal check that valid performer consent exists for a character, modality, and territory.'],
                   ['Critic', 'An LLM-based evaluation module that scores content against specific aspects of the character card.'],
                   ['Critic Configuration', 'Per-org/franchise/character overrides for critic weights, thresholds, and instructions.'],
+                  ['Custom Judge', 'A registered LLM model that can be used as an evaluation judge, supporting multiple providers and modalities.'],
                   ['Decision', 'The outcome of an evaluation: pass, regenerate, quarantine, escalate, or block.'],
                   ['Drift Baseline', 'The established normal scoring range for a character+critic combination.'],
                   ['Drift Event', 'A detected deviation from the drift baseline, indicating potential character drift.'],
@@ -1699,16 +1887,22 @@ def generate_and_evaluate(character_id, prompt, agent_id="my-agent"):
                   ['Franchise', 'A group of related characters under a single IP umbrella (e.g., "Peppa Pig").'],
                   ['Franchise Health', 'Aggregated evaluation metrics across all characters in a franchise.'],
                   ['Hard Gate', 'A check that blocks evaluation entirely if it fails (e.g., consent verification).'],
+                  ['Head-to-Head', 'A comparison mode that evaluates the same content against two different characters simultaneously.'],
+                  ['HITL', 'Human-in-the-loop — the review process where human reviewers examine flagged evaluation results.'],
                   ['Improvement Trajectory', 'A tracked metric over time for a character or franchise, showing trend direction.'],
                   ['Main Character', 'A primary character that appears first in all dropdowns and the character grid.'],
                   ['Override', 'An enforcement action that approves content despite a non-pass evaluation decision.'],
                   ['Rapid Screen', 'A fast initial evaluation using a subset of critics, used in tiered evaluation.'],
+                  ['Red Team', 'Adversarial robustness testing that generates attack probes to test character resilience.'],
+                  ['Resilience Score', 'Red team metric: 1.0 minus (successful attacks / total probes). Higher is more resilient.'],
+                  ['Review Item', 'A flagged evaluation result queued for human review in the HITL Review Queue.'],
                   ['Sampling Rate', 'The percentage of content that is selected for evaluation (0.0 to 1.0).'],
                   ['Slug', 'A URL-safe identifier for a resource (lowercase, hyphens instead of spaces).'],
                   ['Taxonomy', 'A structured classification system for evaluation rules and content policies.'],
                   ['Test Case', 'A single input/expected-output pair within a test suite.'],
                   ['Test Suite', 'A collection of test cases targeting a specific character, used for agent certification.'],
                   ['Tiered Evaluation', 'A two-stage evaluation: rapid screen first, then full evaluation for passing content.'],
+                  ['Webhook', 'An HTTP callback triggered by evaluation events (completion, block, escalation) with HMAC-SHA256 signed payloads.'],
                 ].map(([term, def]) => (
                   <tr key={term}>
                     <td className="px-4 py-2 font-medium text-gray-900">{term}</td>
