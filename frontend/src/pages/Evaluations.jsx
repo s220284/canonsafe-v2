@@ -5,6 +5,8 @@ import api from '../services/api'
 export default function Evaluations() {
   const [runs, setRuns] = useState([])
   const [characters, setCharacters] = useState([])
+  const [franchises, setFranchises] = useState([])
+  const [franchiseFilter, setFranchiseFilter] = useState('all')
   const [charMap, setCharMap] = useState({})
   const [criticMap, setCriticMap] = useState({})
   const [showEval, setShowEval] = useState(false)
@@ -44,6 +46,7 @@ export default function Evaluations() {
       r.data.forEach(c => { map[c.id] = c.name; map[String(c.id)] = c.name })
       setCriticMap(map)
     })
+    api.get('/franchises').then((r) => setFranchises(r.data))
   }, [])
 
   const runEval = async (e) => {
@@ -361,24 +364,41 @@ export default function Evaluations() {
       {/* New evaluation form */}
       {showEval && (
         <form onSubmit={runEval} className="bg-white rounded-lg shadow p-4 mb-4 space-y-3">
+          {franchises.length > 1 && (
+            <select value={franchiseFilter}
+              onChange={(e) => { setFranchiseFilter(e.target.value); setForm({ ...form, character_id: '' }) }}
+              className="w-full border rounded px-3 py-2 text-sm">
+              <option value="all">All Franchises</option>
+              {franchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          )}
           <select value={form.character_id} onChange={(e) => setForm({ ...form, character_id: e.target.value })}
             className="w-full border rounded px-3 py-2 text-sm" required>
             <option value="">Select Character...</option>
-            {characters.some(c => c.is_main) && (
-              <optgroup label="Main Characters">
-                {characters.filter(c => c.is_main).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </optgroup>
-            )}
-            {characters.some(c => !c.is_main && c.is_focus) && (
-              <optgroup label="Focus Characters">
-                {characters.filter(c => !c.is_main && c.is_focus).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </optgroup>
-            )}
-            {characters.some(c => !c.is_main && !c.is_focus) && (
-              <optgroup label="Other Characters">
-                {characters.filter(c => !c.is_main && !c.is_focus).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </optgroup>
-            )}
+            {(() => {
+              const filtered = franchiseFilter !== 'all'
+                ? characters.filter(c => String(c.franchise_id) === String(franchiseFilter))
+                : characters
+              return (
+                <>
+                  {filtered.some(c => c.is_main) && (
+                    <optgroup label="Main Characters">
+                      {filtered.filter(c => c.is_main).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  {filtered.some(c => !c.is_main && c.is_focus) && (
+                    <optgroup label="Focus Characters">
+                      {filtered.filter(c => !c.is_main && c.is_focus).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  {filtered.some(c => !c.is_main && !c.is_focus) && (
+                    <optgroup label="Other Characters">
+                      {filtered.filter(c => !c.is_main && !c.is_focus).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                </>
+              )
+            })()}
           </select>
           <div className="flex gap-3">
             <select value={form.modality} onChange={(e) => setForm({ ...form, modality: e.target.value })}
@@ -406,7 +426,18 @@ export default function Evaluations() {
           : detail && renderDetail(detail)
       )}
 
-      {/* History table */}
+      {/* History filter + table */}
+      {franchises.length > 1 && !showEval && (
+        <div className="bg-white rounded-lg shadow p-3 mb-4 flex items-center gap-3">
+          <span className="text-xs text-gray-500">Filter history:</span>
+          <select value={franchiseFilter}
+            onChange={(e) => setFranchiseFilter(e.target.value)}
+            className="border rounded px-2 py-1.5 text-sm">
+            <option value="all">All Franchises</option>
+            {franchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </div>
+      )}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -421,25 +452,31 @@ export default function Evaluations() {
             </tr>
           </thead>
           <tbody>
-            {runs.map((r) => (
-              <tr key={r.id}
-                onClick={() => selectRun(r)}
-                className={`border-t cursor-pointer transition-colors ${
-                  selected === r.id ? 'bg-blue-50' : 'hover:bg-gray-50'
-                }`}>
-                <td className="px-4 py-2 text-gray-400">{r.id}</td>
-                <td className="px-4 py-2 font-medium">{charMap[r.character_id] || `#${r.character_id}`}</td>
-                <td className={`px-4 py-2 font-mono font-bold ${scoreColor(r.overall_score)}`}>
-                  {r.overall_score != null ? pct(r.overall_score).toFixed(1) : '-'}
-                </td>
-                <td className="px-4 py-2">
-                  <span className={`text-xs px-2 py-0.5 rounded ${decisionColor(r.decision)}`}>{r.decision}</span>
-                </td>
-                <td className="px-4 py-2 text-gray-500 text-xs">{r.tier}</td>
-                <td className="px-4 py-2 text-gray-500 text-xs">{r.agent_id || '-'}</td>
-                <td className="px-4 py-2 text-gray-500 text-xs">{new Date(r.created_at).toLocaleDateString()}</td>
-              </tr>
-            ))}
+            {(() => {
+              const franchiseCharIds = franchiseFilter !== 'all'
+                ? new Set(characters.filter(c => String(c.franchise_id) === String(franchiseFilter)).map(c => c.id))
+                : null
+              const filteredRuns = franchiseCharIds ? runs.filter(r => franchiseCharIds.has(r.character_id)) : runs
+              return filteredRuns.map((r) => (
+                <tr key={r.id}
+                  onClick={() => selectRun(r)}
+                  className={`border-t cursor-pointer transition-colors ${
+                    selected === r.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}>
+                  <td className="px-4 py-2 text-gray-400">{r.id}</td>
+                  <td className="px-4 py-2 font-medium">{charMap[r.character_id] || `#${r.character_id}`}</td>
+                  <td className={`px-4 py-2 font-mono font-bold ${scoreColor(r.overall_score)}`}>
+                    {r.overall_score != null ? pct(r.overall_score).toFixed(1) : '-'}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${decisionColor(r.decision)}`}>{r.decision}</span>
+                  </td>
+                  <td className="px-4 py-2 text-gray-500 text-xs">{r.tier}</td>
+                  <td className="px-4 py-2 text-gray-500 text-xs">{r.agent_id || '-'}</td>
+                  <td className="px-4 py-2 text-gray-500 text-xs">{new Date(r.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))
+            })()}
           </tbody>
         </table>
         {runs.length === 0 && (

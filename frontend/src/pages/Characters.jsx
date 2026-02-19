@@ -49,7 +49,9 @@ function getSpecies(c) {
 
 export default function Characters() {
   const [characters, setCharacters] = useState([])
+  const [franchises, setFranchises] = useState([])
   const [franchiseMap, setFranchiseMap] = useState({})
+  const [franchiseFilter, setFranchiseFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', slug: '', description: '' })
   const [search, setSearch] = useState('')
@@ -57,15 +59,19 @@ export default function Characters() {
   const [sortBy, setSortBy] = useState('priority')
   const [viewMode, setViewMode] = useState('grid')
 
-  const load = () => api.get('/characters').then((r) => setCharacters(r.data))
+  const load = () => {
+    const params = franchiseFilter !== 'all' ? `?franchise_id=${franchiseFilter}` : ''
+    api.get(`/characters${params}`).then((r) => setCharacters(r.data))
+  }
   useEffect(() => {
-    load()
     api.get('/franchises').then((r) => {
+      setFranchises(r.data)
       const map = {}
       r.data.forEach(f => { map[f.id] = f.name })
       setFranchiseMap(map)
     })
   }, [])
+  useEffect(() => { load() }, [franchiseFilter])
 
   const create = async (e) => {
     e.preventDefault()
@@ -267,7 +273,7 @@ export default function Characters() {
     <div>
       <PageHeader
         title="Characters"
-        subtitle={`${characters.length} character cards`}
+        subtitle={`${characters.length} character cards${franchiseFilter !== 'all' ? ` in ${franchiseMap[franchiseFilter] || 'franchise'}` : ''}`}
         action={
           <button onClick={() => setShowCreate(true)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">
             New Character
@@ -290,6 +296,20 @@ export default function Characters() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
+
+        {/* Franchise filter */}
+        {franchises.length > 1 && (
+          <select
+            value={franchiseFilter}
+            onChange={(e) => setFranchiseFilter(e.target.value)}
+            className="border rounded px-2 py-1.5 text-sm"
+          >
+            <option value="all">All Franchises</option>
+            {franchises.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        )}
 
         {/* Species filter */}
         <select
