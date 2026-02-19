@@ -495,3 +495,7 @@ async def init_db():
     # ─── Disney / Star Wars demo client ─────────────────────────
     from app.core.seed_starwars import bootstrap_disney_starwars
     await bootstrap_disney_starwars(async_session)
+
+    # ─── Disney / Disney Princess franchise ─────────────────────
+    from app.core.seed_disney_princess import bootstrap_disney_princess
+    await bootstrap_disney_princess(async_session)
