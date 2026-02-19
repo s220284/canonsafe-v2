@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import api from '../services/api'
 
@@ -48,10 +48,11 @@ function getSpecies(c) {
 }
 
 export default function Characters() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [characters, setCharacters] = useState([])
   const [franchises, setFranchises] = useState([])
   const [franchiseMap, setFranchiseMap] = useState({})
-  const [franchiseFilter, setFranchiseFilter] = useState('all')
+  const [franchiseFilter, setFranchiseFilter] = useState(searchParams.get('franchise') || 'all')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', slug: '', description: '' })
   const [search, setSearch] = useState('')
@@ -301,7 +302,11 @@ export default function Characters() {
         {franchises.length > 1 && (
           <select
             value={franchiseFilter}
-            onChange={(e) => setFranchiseFilter(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value
+              setFranchiseFilter(val)
+              if (val === 'all') { setSearchParams({}) } else { setSearchParams({ franchise: val }) }
+            }}
             className="border rounded px-2 py-1.5 text-sm"
           >
             <option value="all">All Franchises</option>

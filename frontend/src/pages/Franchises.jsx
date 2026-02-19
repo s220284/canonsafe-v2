@@ -58,8 +58,7 @@ export default function Franchises() {
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {franchises.map((f) => (
-          <Link key={f.id} to={`/franchises/${f.id}/health`}
-            className="bg-white rounded-lg shadow p-5 hover:shadow-md transition-shadow">
+          <div key={f.id} className="bg-white rounded-lg shadow p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold">
                 {f.name[0]}
@@ -70,7 +69,7 @@ export default function Franchises() {
               </div>
             </div>
             <p className="text-sm text-gray-500 mb-3">{f.description || 'No description'}</p>
-            <div className="flex gap-4 text-xs text-gray-400">
+            <div className="flex gap-4 text-xs text-gray-400 mb-3">
               <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{charCounts[f.id] || 0} characters</span>
               {f.settings?.content_rating && (
                 <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded">Rated {f.settings.content_rating}</span>
@@ -79,7 +78,18 @@ export default function Franchises() {
                 <span className="bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded">Ages {f.settings.age_recommendation}</span>
               )}
             </div>
-          </Link>
+            <div className="flex gap-2 border-t pt-3">
+              <Link to={`/characters?franchise=${f.id}`}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                View Characters
+              </Link>
+              <span className="text-gray-300">|</span>
+              <Link to={`/franchises/${f.id}/health`}
+                className="text-sm text-gray-500 hover:text-gray-700">
+                Health Dashboard
+              </Link>
+            </div>
+          </div>
         ))}
         {franchises.length === 0 && (
           <p className="text-gray-500 text-sm col-span-full">No franchises yet. Create one to get started.</p>
