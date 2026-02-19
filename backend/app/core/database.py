@@ -354,3 +354,144 @@ async def init_db():
             "WHERE name IN ('Peppa Pig', 'George Pig', 'Mummy Pig', 'Daddy Pig', 'Suzy Sheep') "
             "AND is_main = false"
         ))
+
+    # ─── V3 Migrations: Organization columns ─────────────────────
+    async with engine.begin() as conn:
+        org_v3_cols = [
+            ("display_name", "VARCHAR(255)"),
+            ("industry", "VARCHAR(255)"),
+            ("plan", "VARCHAR(50) DEFAULT 'trial'"),
+            ("is_active", "BOOLEAN DEFAULT true" if is_postgres else "BOOLEAN DEFAULT 1"),
+            ("onboarding_completed", "BOOLEAN DEFAULT false" if is_postgres else "BOOLEAN DEFAULT 0"),
+            ("updated_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in org_v3_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE organizations ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE organizations ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # ─── V3 Migrations: User columns ─────────────────────────────
+    async with engine.begin() as conn:
+        user_v3_cols = [
+            ("is_super_admin", "BOOLEAN DEFAULT false" if is_postgres else "BOOLEAN DEFAULT 0"),
+            ("last_login_at", "TIMESTAMP"),
+            ("password_changed_at", "TIMESTAMP"),
+        ]
+        for col_name, col_type in user_v3_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # ─── V3: Bootstrap super-admin flag ────────────────────────────
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text(
+                "UPDATE users SET is_super_admin = true WHERE email = 's220284@gmail.com'"
+            ))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text(
+                "UPDATE users SET is_super_admin = true WHERE email = 'shelly@shellypalmer.com'"
+            ))
+        except Exception:
+            pass
+
+    # ─── V3: Bootstrap platform accounts ────────────────────────────
+    import bcrypt as _bcrypt
+    from sqlalchemy import select as _select
+    from app.models.core import User as _User, Organization as _Organization
+
+    def _hash_pw(pw: str) -> str:
+        return _bcrypt.hashpw(pw.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+
+    async with async_session() as session:
+        async with session.begin():
+            # 1. Create "Palmer Group" org for super-admin
+            result = await session.execute(
+                _select(_Organization).where(_Organization.slug == "palmer-group")
+            )
+            admin_org = result.scalar_one_or_none()
+            if not admin_org:
+                admin_org = _Organization(
+                    name="Palmer Group",
+                    slug="palmer-group",
+                    display_name="Palmer Group",
+                    industry="Media & Technology",
+                    plan="enterprise",
+                )
+                session.add(admin_org)
+                await session.flush()
+
+            # 2. Create shelly@shellypalmer.com as super-admin (God Mode)
+            result = await session.execute(
+                _select(_User).where(_User.email == "shelly@shellypalmer.com")
+            )
+            shelly = result.scalar_one_or_none()
+            if not shelly:
+                shelly = _User(
+                    email="shelly@shellypalmer.com",
+                    hashed_password=_hash_pw("Deltahbar72!!"),
+                    full_name="Shelly Palmer",
+                    role="admin",
+                    org_id=admin_org.id,
+                    is_super_admin=True,
+                )
+                session.add(shelly)
+            else:
+                shelly.is_super_admin = True
+
+            # 3. Set up demo org (the existing org with Peppa Pig data)
+            result = await session.execute(
+                _select(_User).where(_User.email == "s220284@gmail.com")
+            )
+            seed_user = result.scalar_one_or_none()
+            demo_org = None
+            if seed_user:
+                result = await session.execute(
+                    _select(_Organization).where(_Organization.id == seed_user.org_id)
+                )
+                demo_org = result.scalar_one_or_none()
+                if demo_org:
+                    demo_org.display_name = "CanonSafe Demo"
+
+            # 4. Create demo user in the demo org
+            if demo_org:
+                result = await session.execute(
+                    _select(_User).where(_User.email == "demo@canonsafe.com")
+                )
+                if not result.scalar_one_or_none():
+                    demo_user = _User(
+                        email="demo@canonsafe.com",
+                        hashed_password=_hash_pw("CanonSafe2024!"),
+                        full_name="Demo User",
+                        role="editor",
+                        org_id=demo_org.id,
+                    )
+                    session.add(demo_user)
+
+    # ─── Disney / Star Wars demo client ─────────────────────────
+    from app.core.seed_starwars import bootstrap_disney_starwars
+    await bootstrap_disney_starwars(async_session)
