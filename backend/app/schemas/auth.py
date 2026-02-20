@@ -30,6 +30,10 @@ class UserOut(BaseModel):
     org_id: int
     is_active: bool
     created_at: datetime
+    # V3 additions
+    is_super_admin: bool = False
+    last_login_at: Optional[datetime] = None
+    org_name: Optional[str] = None
 
     class Config:
         from_attributes = True

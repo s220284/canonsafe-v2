@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     RAPID_SCREEN_THRESHOLD: float = 0.7
     DEEP_EVAL_THRESHOLD: float = 0.9
 
+    # V3: SaaS settings
+    ALLOW_PUBLIC_REGISTRATION: bool = True  # Set to false in prod
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Email (Phase 2)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    FROM_EMAIL: str = "noreply@canonsafe.com"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

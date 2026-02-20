@@ -25,7 +25,10 @@ async def create_character(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_editor),
 ):
-    return await character_service.create_character(db, data, user.org_id)
+    result = await character_service.create_character(db, data, user.org_id)
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "character.create", "character", result.id)
+    return result
 
 
 @router.get("", response_model=List[CharacterCardOut])
@@ -75,6 +78,8 @@ async def update_character(
     card = await character_service.update_character(db, character_id, user.org_id, data)
     if not card:
         raise HTTPException(status_code=404, detail="Character not found")
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "character.update", "character", character_id)
     return card
 
 
@@ -87,6 +92,8 @@ async def delete_character(
     ok = await character_service.delete_character(db, character_id, user.org_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Character not found")
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "character.delete", "character", character_id)
     return {"ok": True}
 
 

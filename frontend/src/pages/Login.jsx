@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Login() {
@@ -19,6 +19,11 @@ export default function Login() {
     setSubmitting(true)
     try {
       if (isRegister) {
+        if (!orgName.trim()) {
+          setError('Organization name is required')
+          setSubmitting(false)
+          return
+        }
         await register(email, password, fullName, orgName)
       } else {
         await login(email, password)
@@ -34,9 +39,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">CanonSafe V2</h1>
+        <h1 className="text-2xl font-bold text-center mb-2">CanonSafe</h1>
         <p className="text-center text-gray-500 mb-6">
-          {isRegister ? 'Create an account' : 'Sign in to continue'}
+          {isRegister ? 'Create your account' : 'Sign in to continue'}
         </p>
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>
@@ -50,8 +55,9 @@ export default function Login() {
                 className="w-full border rounded px-3 py-2 text-sm"
               />
               <input
-                type="text" placeholder="Organization Name" value={orgName}
+                type="text" placeholder="Organization / Company Name *" value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
+                required
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </>
@@ -67,15 +73,23 @@ export default function Login() {
             className="w-full border rounded px-3 py-2 text-sm"
           />
           <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-            {submitting ? 'Please wait...' : isRegister ? 'Register' : 'Sign In'}
+            {submitting ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
           </button>
         </form>
-        <p className="text-center text-sm text-gray-500 mt-4">
-          {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button onClick={() => setIsRegister(!isRegister)} className="text-blue-600 hover:underline">
-            {isRegister ? 'Sign in' : 'Register'}
-          </button>
-        </p>
+        <div className="mt-4 space-y-2 text-center text-sm">
+          <p className="text-gray-500">
+            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button onClick={() => { setIsRegister(!isRegister); setError('') }} className="text-blue-600 hover:underline">
+              {isRegister ? 'Sign in' : 'Sign up'}
+            </button>
+          </p>
+          {!isRegister && (
+            <>
+              <p><Link to="/reset-password" className="text-blue-600 hover:underline">Forgot password?</Link></p>
+              <p><Link to="/accept-invitation" className="text-gray-400 hover:text-gray-600">Have an invitation?</Link></p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

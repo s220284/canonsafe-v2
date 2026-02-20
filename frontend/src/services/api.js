@@ -9,6 +9,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // God Mode: super-admin org override
+  const orgOverride = localStorage.getItem('orgOverride')
+  if (orgOverride) {
+    config.headers['X-Org-Override'] = orgOverride
+  }
   return config
 })
 

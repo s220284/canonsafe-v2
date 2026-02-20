@@ -59,6 +59,13 @@ from app.api.routes import (
     ci,
     judges,
     multimodal,
+    # V3 routers
+    users,
+    org,
+    password,
+    apikeys,
+    audit,
+    admin,
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
@@ -84,4 +91,11 @@ app.include_router(ab_testing.router, prefix="/api/ab-testing", tags=["A/B Testi
 app.include_router(ci.router, prefix="/api/ci", tags=["CI/CD"])
 app.include_router(judges.router, prefix="/api/judges", tags=["Judges"])
 app.include_router(multimodal.router, prefix="/api/multimodal", tags=["Multi-Modal"])
+# V3 routers
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(org.router, prefix="/api/org", tags=["Organization"])
+app.include_router(password.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(apikeys.router, prefix="/api/api-keys", tags=["API Keys"])
+app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(health.router, prefix="/api", tags=["Health"])

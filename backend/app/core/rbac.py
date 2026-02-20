@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import Depends, HTTPException, status
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_super_admin
 
 
 def require_role(allowed_roles: List[str]):
@@ -35,3 +35,4 @@ def require_role(allowed_roles: List[str]):
 require_admin = require_role(["admin"])
 require_editor = require_role(["admin", "editor"])
 require_viewer = require_role(["admin", "editor", "viewer"])
+require_super_admin = get_super_admin

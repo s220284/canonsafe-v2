@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import OnboardingBanner from '../components/OnboardingBanner'
 import api from '../services/api'
 
 export default function Dashboard() {
@@ -71,7 +72,9 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="CanonSafe V2 — Character IP Governance Platform" />
+      <PageHeader title="Dashboard" subtitle="CanonSafe — Character IP Governance Platform" />
+
+      <OnboardingBanner />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">

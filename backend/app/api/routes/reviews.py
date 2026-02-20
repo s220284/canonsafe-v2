@@ -161,9 +161,12 @@ async def claim_review_item(
 ):
     """Claim a review item for the current user."""
     try:
-        return await review_service.claim_review_item(db, item_id, user.id, user.org_id)
+        item = await review_service.claim_review_item(db, item_id, user.id, user.org_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "review.claim", "review_item", item_id)
+    return item
 
 
 @router.post("/{item_id}/resolve", response_model=ReviewItemOut)
@@ -175,7 +178,7 @@ async def resolve_review_item(
 ):
     """Resolve a review item with a decision."""
     try:
-        return await review_service.resolve_review_item(
+        item = await review_service.resolve_review_item(
             db,
             item_id,
             user.id,
@@ -187,6 +190,9 @@ async def resolve_review_item(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "review.resolve", "review_item", item_id, detail={"resolution": data.resolution})
+    return item
 
 
 @router.post("/auto-queue")

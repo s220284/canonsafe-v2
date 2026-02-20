@@ -293,6 +293,15 @@ async def _finalize_eval(db: AsyncSession, eval_run: EvalRun, critic_results: Li
         from app.services import review_service
         await review_service.create_review_item(db, eval_run.id, decision, eval_run.org_id)
 
+    # V3: Record usage
+    try:
+        from app.services import usage_service
+        total_tokens = sum(r.get("prompt_tokens", 0) + r.get("completion_tokens", 0) for r in critic_results)
+        total_cost = sum(r.get("estimated_cost", 0.0) for r in critic_results)
+        await usage_service.record_eval(db, eval_run.org_id, total_tokens, total_cost)
+    except Exception:
+        pass
+
     # Dispatch webhook events
     try:
         from app.services import webhook_service

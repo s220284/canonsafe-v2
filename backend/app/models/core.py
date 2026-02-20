@@ -1,4 +1,4 @@
-"""All SQLAlchemy models for CanonSafe V2."""
+"""All SQLAlchemy models for CanonSafe V3."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -37,6 +37,14 @@ class Organization(Base):
     settings = Column(JSON, default=dict)
     created_at = Column(DateTime, default=utcnow)
 
+    # V3 additions
+    display_name = Column(String(255), nullable=True)
+    industry = Column(String(255), nullable=True)
+    plan = Column(String(50), default="trial")  # trial, starter, professional, enterprise
+    is_active = Column(Boolean, default=True)
+    onboarding_completed = Column(Boolean, default=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
     users = relationship("User", back_populates="organization")
     franchises = relationship("Franchise", back_populates="organization")
     characters = relationship("CharacterCard", back_populates="organization")
@@ -54,7 +62,93 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
 
+    # V3 additions
+    is_super_admin = Column(Boolean, default=False)
+    last_login_at = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, nullable=True)
+
     organization = relationship("Organization", back_populates="users")
+
+
+# ─── V3: Invitations ────────────────────────────────────────────
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    role = Column(String(50), default="viewer")
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    status = Column(String(50), default="pending")  # pending, accepted, expired, revoked
+    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+    organization = relationship("Organization")
+    inviter = relationship("User", foreign_keys=[invited_by])
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User")
+
+
+class AuditLogEntry(Base):
+    __tablename__ = "audit_log_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(255), nullable=False)  # e.g. "user.invite", "eval.run"
+    resource_type = Column(String(100), nullable=True)
+    resource_id = Column(String(100), nullable=True)
+    detail = Column(JSON, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    key_prefix = Column(String(8), nullable=False)  # first 8 chars for display
+    key_hash = Column(String(255), nullable=False)  # bcrypt hash
+    scopes = Column(JSON, default=list)  # e.g. ["evaluations", "characters:read"]
+    is_active = Column(Boolean, default=True)
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    organization = relationship("Organization")
+    creator = relationship("User")
+
+
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    period = Column(String(7), nullable=False)  # e.g. "2026-02"
+    eval_count = Column(Integer, default=0)
+    api_call_count = Column(Integer, default=0)
+    llm_tokens_used = Column(Integer, default=0)
+    estimated_cost = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (UniqueConstraint("org_id", "period", name="uq_usage_org_period"),)
 
 
 # ─── Franchise ──────────────────────────────────────────────────

@@ -29,6 +29,9 @@ async def run_evaluation(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "eval.run", "eval_run", eval_run.id, detail={"decision": eval_run.decision, "score": eval_run.overall_score})
+
     # Load result
     result = await evaluation_service.get_eval_result(db, eval_run.id)
     result_out = None

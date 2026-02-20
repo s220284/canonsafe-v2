@@ -10,7 +10,7 @@ This file helps AI assistants (Claude, etc.) quickly understand and continue wor
 - **GitHub:** https://github.com/s220284/canonsafe-v2
 - **Patent Repo:** https://github.com/s220284/eaas (method patent + provisional patent)
 
-## Current State (as of 2026-02-14)
+## Current State (as of 2026-02-19)
 
 ### What's Working
 
@@ -56,7 +56,7 @@ Both patents cover all 16 capabilities implemented in the codebase:
 
 ### Recent Deployments
 
-- Backend revision: `canonsafe-v2-00009-n5b` (clean, no temp endpoints)
+- Backend revision: `canonsafe-v2-00020-2fv` (clean, no temp endpoints)
 - Previous revisions included temporary seed/enrichment endpoints that have been removed
 
 ## Critical Architecture Details
@@ -176,6 +176,8 @@ These bugs have already been fixed but will resurface if not maintained:
 | `backend/app/core/config.py` | All env vars and settings (Pydantic BaseSettings) |
 | `backend/app/core/database.py` | Engine creation, `init_db()` with migrations |
 | `backend/app/core/llm.py` | LLM adapter: OpenAI + Anthropic, multi-provider bias mitigation |
+| `backend/app/core/seed_starwars.py` | Disney / Star Wars seed: 15 characters, 5 critics, bootstrap function |
+| `backend/app/core/seed_disney_princess.py` | Disney Princess seed: 12 characters, 5 critics, bootstrap function |
 | `backend/app/models/core.py` | All 31 SQLAlchemy models |
 
 ### Frontend Pages (`frontend/src/pages/`)
@@ -342,6 +344,46 @@ The production database cannot run local seed scripts (they reference local JSON
 6. Redeploy clean
 
 The `seed_enrich.py` route file (kept but unregistered) contains a complete template for this pattern with all 74 characters' rich data.
+
+## Demo Client Data — Disney Org
+
+The Disney org (`slug: disney`) is bootstrapped at startup via `init_db()` in `database.py`. It demonstrates multi-franchise support under a single organization.
+
+- **Login:** `s220284+disney@gmail.com` / `starwars`
+- **Seed files:** `backend/app/core/seed_starwars.py`, `backend/app/core/seed_disney_princess.py`
+- **Bootstrap order:** Star Wars first (creates Disney org + admin user), then Disney Princess (looks up existing org)
+
+### Disney / Star Wars Franchise
+
+- **Seed file:** `backend/app/core/seed_starwars.py`
+- **15 characters** with full 5-pack CardVersions (PG-13 rating, live-action art style)
+- **5 critics:** Force Lore (`sw-force-lore`), Faction Alignment (`sw-faction-alignment`), Canon Fidelity (`sw-canon-fidelity`), Voice Consistency (`sw-voice-consistency`), Safety & Brand (`sw-safety-brand`)
+- Main characters: Luke, Leia, Han, Chewie, Obi-Wan, Vader, Yoda, R2-D2, C-3PO
+- Focus characters: Palpatine, Padme, Rey, Kylo Ren
+- Supporting: Finn, Poe Dameron
+
+### Disney Princess Franchise
+
+- **Seed file:** `backend/app/core/seed_disney_princess.py`
+- **12 characters** — the official Disney Princess lineup with full 5-pack CardVersions (G rating, animated art style)
+- **5 critics:** Princess Values (`dp-princess-values`), Cultural Authenticity (`dp-cultural-authenticity`), Story Canon (`dp-story-canon`), Voice & Song (`dp-voice-song`), Family Safety & Brand (`dp-safety-brand`)
+- Main characters: Snow White, Cinderella, Aurora, Ariel, Belle, Jasmine, Tiana, Rapunzel, Moana
+- Focus characters: Pocahontas, Mulan, Merida
+
+**Key differences from Star Wars:**
+- **G-rated** (not PG-13) — children's brand
+- **Animated art style** (not live-action)
+- **Signature songs** referenced in `audio_identity_pack` (e.g., "Part of Your World", "Let It Go")
+- **Cultural sensitivity:** Culturally-rooted princesses (Jasmine, Pocahontas, Mulan, Tiana, Moana, Merida) use `_SAFETY_CULTURAL` with extra protections against cultural mockery and historical revisionism
+- **Empowerment focus:** Modern Disney Princess brand values (courage, kindness, agency)
+
+### Totals for Disney Org
+
+| | Star Wars | Disney Princess | **Total** |
+|---|-----------|----------------|-----------|
+| Characters | 15 | 12 | **27** |
+| Franchise Critics | 5 | 5 | **10** |
+| Franchises | 1 | 1 | **2** |
 
 ## GCP Resources
 

@@ -23,9 +23,12 @@ async def certify_agent(
     user: User = Depends(require_editor),
 ):
     try:
-        return await certification_service.certify_agent(db, data, user.org_id)
+        cert = await certification_service.certify_agent(db, data, user.org_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    from app.services import audit_service
+    await audit_service.log_action(db, user.org_id, user.id, "cert.create", "certification", cert.id)
+    return cert
 
 
 @router.get("", response_model=List[CertificationOut])

@@ -25,6 +25,13 @@ import RedTeam from './pages/RedTeam'
 import ABTesting from './pages/ABTesting'
 import Judges from './pages/Judges'
 import MultiModal from './pages/MultiModal'
+// V3 pages
+import AdminDashboard from './pages/AdminDashboard'
+import AcceptInvitation from './pages/AcceptInvitation'
+import ResetPassword from './pages/ResetPassword'
+import ApiDocs from './pages/ApiDocs'
+import Tutorial from './pages/Tutorial'
+import TutorialChapter from './pages/TutorialChapter'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -41,6 +48,10 @@ export default function App() {
       <Route path="/login" element={
         loading ? null : user ? <Navigate to="/" replace /> : <Login />
       } />
+      {/* V3: Public routes (no Layout wrapper) */}
+      <Route path="/accept-invitation" element={<AcceptInvitation />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Protected routes */}
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
       <Route path="/characters/:id" element={<ProtectedRoute><CharacterWorkspace /></ProtectedRoute>} />
@@ -64,6 +75,11 @@ export default function App() {
       <Route path="/consent" element={<ProtectedRoute><Consent /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/manual" element={<ProtectedRoute><UserManual /></ProtectedRoute>} />
+      {/* V3: Admin + API docs routes */}
+      <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
+      <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
+      <Route path="/tutorial/:chapter" element={<ProtectedRoute><TutorialChapter /></ProtectedRoute>} />
     </Routes>
   )
 }
