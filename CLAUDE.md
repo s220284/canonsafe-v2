@@ -32,6 +32,14 @@ cd frontend && npm run dev      # http://localhost:3000 (proxies /api → localh
 cd frontend && npm run build    # production build → dist/
 ```
 
+### Deploy Frontend to Vercel
+
+```bash
+cd frontend && vercel --prod
+```
+
+Frontend also auto-deploys via GitHub Actions on push to `main` when `frontend/**` changes (requires `VERCEL_TOKEN` secret).
+
 ### Deploy Backend to Cloud Run
 
 ```bash
@@ -178,7 +186,7 @@ Cloud Run can't run local seed scripts. Use the temporary endpoint pattern:
 | Backend | Cloud Run | https://canonsafe-v2-516559856008.us-east1.run.app |
 | Frontend | Vercel | https://frontend-beta-ten-75.vercel.app |
 | Database | Cloud SQL | `tpgpt-prod:us-east1:tpg-intel-db` / `canonsafe` |
-| CI/CD | GitHub Actions | Deploys backend on push to `main` (requires `GCP_SA_KEY` secret) |
+| CI/CD | GitHub Actions | Auto-deploys on push to `main`: backend (`GCP_SA_KEY`), frontend (`VERCEL_TOKEN`) |
 
 **Demo login:** `s220284@gmail.com` / `canonsafe2024`
 **Disney demo:** `s220284+disney@gmail.com` / `starwars` (Star Wars + Disney Princess franchises, 27 characters, 10 critics)
