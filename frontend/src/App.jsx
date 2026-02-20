@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -32,11 +33,40 @@ import ResetPassword from './pages/ResetPassword'
 import ApiDocs from './pages/ApiDocs'
 import Tutorial from './pages/Tutorial'
 import TutorialChapter from './pages/TutorialChapter'
+import UsageDashboard from './pages/UsageDashboard'
+import SetupWizard from './pages/SetupWizard'
+import api from './services/api'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
+  const [onboardingChecked, setOnboardingChecked] = useState(false)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!user || location.pathname === '/setup') {
+      setOnboardingChecked(true)
+      return
+    }
+    // Only check onboarding for admins on dashboard (/) to avoid excessive API calls
+    if (user.role === 'admin' && location.pathname === '/') {
+      api.get('/org/onboarding')
+        .then(r => {
+          if (r.data && !r.data.completed && r.data.progress === 0) {
+            setNeedsOnboarding(true)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setOnboardingChecked(true))
+    } else {
+      setOnboardingChecked(true)
+    }
+  }, [user, location.pathname])
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
+  if (!onboardingChecked) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>
+  if (needsOnboarding) return <Navigate to="/setup" replace />
   return <Layout>{children}</Layout>
 }
 
@@ -80,6 +110,8 @@ export default function App() {
       <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
       <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
       <Route path="/tutorial/:chapter" element={<ProtectedRoute><TutorialChapter /></ProtectedRoute>} />
+      <Route path="/usage" element={<ProtectedRoute><UsageDashboard /></ProtectedRoute>} />
+      <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
     </Routes>
   )
 }

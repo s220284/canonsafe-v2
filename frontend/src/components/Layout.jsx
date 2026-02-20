@@ -41,6 +41,7 @@ const navGroups = [
       { path: '/drift', label: 'Drift Monitor' },
       { path: '/improvement', label: 'Improvement' },
       { path: '/apm', label: 'APM' },
+      { path: '/usage', label: 'Usage' },
     ],
   },
   {
@@ -105,7 +106,10 @@ export default function Layout({ children }) {
     <div className="h-screen flex overflow-hidden">
       <aside className="w-56 bg-gray-900 text-white flex flex-col flex-shrink-0 h-screen">
         <div className="p-4 border-b border-gray-700">
-          <h1 className="text-lg font-bold">CanonSafe</h1>
+          <div className="flex items-center gap-2">
+            <img src="/canonsafe_logo_32x32.png" alt="CanonSafe" width={24} height={24} />
+            <h1 className="text-lg font-bold">CanonSafe</h1>
+          </div>
           <p className="text-xs text-gray-400 mt-1">{user?.email}</p>
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">

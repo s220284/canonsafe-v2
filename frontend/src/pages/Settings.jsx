@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
 import api from '../services/api'
 
-const tabs = ['Account', 'Organization', 'Users', 'API Keys', 'Audit Log']
+const tabs = ['Account', 'Organization', 'License', 'Users', 'API Keys', 'Audit Log']
 
 export default function Settings() {
   const { user } = useAuth()
@@ -16,7 +16,7 @@ export default function Settings() {
       <div className="border-b mb-6">
         <nav className="flex gap-1">
           {tabs.map(tab => {
-            if (['Organization','Users','API Keys','Audit Log'].includes(tab) && !isAdmin) return null
+            if (['Organization','License','Users','API Keys','Audit Log'].includes(tab) && !isAdmin) return null
             return (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
@@ -30,6 +30,7 @@ export default function Settings() {
       </div>
       {activeTab === 'Account' && <AccountTab />}
       {activeTab === 'Organization' && isAdmin && <OrganizationTab />}
+      {activeTab === 'License' && isAdmin && <LicenseTab />}
       {activeTab === 'Users' && isAdmin && <UsersTab />}
       {activeTab === 'API Keys' && isAdmin && <ApiKeysTab />}
       {activeTab === 'Audit Log' && isAdmin && <AuditLogTab />}
@@ -125,6 +126,111 @@ function OrganizationTab() {
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Save</button>
         </form>
       </div>
+    </div>
+  )
+}
+
+function LicenseTab() {
+  const [status, setStatus] = useState(null)
+  const [licenseKey, setLicenseKey] = useState('')
+  const [msg, setMsg] = useState('')
+  const [activating, setActivating] = useState(false)
+
+  useEffect(() => {
+    api.get('/license/status').then(r => setStatus(r.data)).catch(() => {})
+  }, [])
+
+  const handleActivate = async (e) => {
+    e.preventDefault()
+    setMsg(''); setActivating(true)
+    try {
+      await api.post('/license/activate', { key: licenseKey })
+      setMsg('License activated successfully!')
+      setLicenseKey('')
+      // Refresh status
+      api.get('/license/status').then(r => setStatus(r.data)).catch(() => {})
+    } catch (err) {
+      setMsg(err.response?.data?.detail || 'Error activating license')
+    } finally {
+      setActivating(false)
+    }
+  }
+
+  const UsageBar = ({ label, current, max }) => {
+    const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0
+    const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-blue-500'
+    return (
+      <div className="space-y-1">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">{label}</span>
+          <span className="font-medium">{current} / {max}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className={`${color} rounded-full h-2 transition-all`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (!status) return <div className="text-sm text-gray-500">Loading...</div>
+
+  return (
+    <div className="max-w-lg space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="font-semibold mb-4">License Status</h3>
+        <div className="space-y-3 text-sm mb-4">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Plan</span>
+            <span className="capitalize font-medium">{status.license.plan}</span>
+          </div>
+          {status.license.key_prefix && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">License Key</span>
+              <span className="font-mono text-xs">{status.license.key_prefix}</span>
+            </div>
+          )}
+          {status.license.expires_at && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Expires</span>
+              <span>{new Date(status.license.expires_at).toLocaleDateString()}</span>
+            </div>
+          )}
+          {status.license.features?.length > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Features</span>
+              <span className="text-xs">{status.license.features.join(', ')}</span>
+            </div>
+          )}
+        </div>
+
+        <h4 className="font-medium text-sm mb-3 mt-6">Usage</h4>
+        <div className="space-y-4">
+          <UsageBar label="Users" current={status.usage.users} max={status.limits.max_users} />
+          <UsageBar label="Characters" current={status.usage.characters} max={status.limits.max_characters} />
+          <UsageBar label="Evaluations (this month)" current={status.usage.evals_this_month} max={status.limits.max_evals_per_month} />
+        </div>
+      </div>
+
+      {!status.license.key_prefix && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="font-semibold mb-4">Activate License</h3>
+          <p className="text-sm text-gray-500 mb-3">Enter a license key to upgrade your plan.</p>
+          {msg && <div className={`text-sm p-2 rounded mb-3 ${msg.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{msg}</div>}
+          <form onSubmit={handleActivate} className="space-y-3">
+            <input
+              type="text"
+              placeholder="CSF-PRO-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+              value={licenseKey}
+              onChange={e => setLicenseKey(e.target.value)}
+              required
+              className="w-full border rounded px-3 py-2 text-sm font-mono"
+            />
+            <button type="submit" disabled={activating} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              {activating ? 'Activating...' : 'Activate License'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

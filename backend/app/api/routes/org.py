@@ -157,3 +157,24 @@ async def get_usage(
         }
         for r in records
     ]
+
+
+@router.get("/usage/details")
+async def get_usage_details(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Get detailed usage for the current month."""
+    from app.services import usage_service
+    return await usage_service.get_usage_details(db, user.org_id)
+
+
+@router.get("/usage/breakdown")
+async def get_cost_breakdown(
+    months: int = 6,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Get monthly cost breakdown."""
+    from app.services import usage_service
+    return await usage_service.get_cost_breakdown(db, user.org_id, months)

@@ -66,6 +66,7 @@ from app.api.routes import (
     apikeys,
     audit,
     admin,
+    license,
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
@@ -98,4 +99,5 @@ app.include_router(password.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(apikeys.router, prefix="/api/api-keys", tags=["API Keys"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(license.router, prefix="/api", tags=["License"])
 app.include_router(health.router, prefix="/api", tags=["Health"])

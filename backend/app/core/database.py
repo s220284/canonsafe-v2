@@ -404,6 +404,83 @@ async def init_db():
                 except Exception:
                     pass
 
+    # ─── V4: Google OAuth columns on users ──────────────────────
+    # MUST run before bootstrap code that queries User model with these columns
+    async with engine.begin() as conn:
+        oauth_cols = [
+            ("google_id", "VARCHAR(255)"),
+            ("auth_provider", "VARCHAR(50) DEFAULT 'local'"),
+        ]
+        for col_name, col_type in oauth_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
+    # Make hashed_password nullable (for Google-only users)
+    if is_postgres:
+        async with engine.begin() as conn:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE users ALTER COLUMN hashed_password DROP NOT NULL"
+                ))
+            except Exception:
+                pass
+
+    # Unique index on google_id (partial — only non-null values)
+    if is_postgres:
+        async with engine.begin() as conn:
+            try:
+                await conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users (google_id) WHERE google_id IS NOT NULL"
+                ))
+            except Exception:
+                pass
+
+    # ─── V4: License keys table ───────────────────────────────────
+    # create_all handles the table creation; add column migrations for safety
+    async with engine.begin() as conn:
+        license_cols = [
+            ("key", "VARCHAR(255) NOT NULL DEFAULT ''"),
+            ("org_id", "INTEGER"),
+            ("plan", "VARCHAR(50) NOT NULL DEFAULT 'starter'"),
+            ("max_users", "INTEGER DEFAULT 5"),
+            ("max_characters", "INTEGER DEFAULT 50"),
+            ("max_evals_per_month", "INTEGER DEFAULT 1000"),
+            ("features", "TEXT"),
+            ("issued_at", "TIMESTAMP"),
+            ("expires_at", "TIMESTAMP"),
+            ("is_active", "BOOLEAN DEFAULT true" if is_postgres else "BOOLEAN DEFAULT 1"),
+            ("last_validated_at", "TIMESTAMP"),
+            ("activated_at", "TIMESTAMP"),
+            ("metadata", "TEXT"),
+        ]
+        for col_name, col_type in license_cols:
+            if is_postgres:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE license_keys ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            else:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE license_keys ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+
     # ─── V3: Bootstrap super-admin flag ────────────────────────────
     async with engine.begin() as conn:
         try:

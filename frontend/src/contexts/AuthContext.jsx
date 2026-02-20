@@ -41,6 +41,13 @@ export function AuthProvider({ children }) {
     await login(email, password)
   }
 
+  const loginWithGoogle = async (code, redirectUri) => {
+    const res = await api.post('/auth/google/callback', { code, redirect_uri: redirectUri })
+    localStorage.setItem('token', res.data.access_token)
+    const me = await api.get('/auth/me')
+    setUser(me.data)
+  }
+
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('orgOverride')
@@ -74,7 +81,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, login, register, logout, refreshUser,
+      user, loading, login, register, loginWithGoogle, logout, refreshUser,
       orgOverride, switchOrg, exitOrgOverride,
     }}>
       {children}

@@ -55,7 +55,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), nullable=False, unique=True, index=True)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Null for Google-only users
     full_name = Column(String(255))
     role = Column(String(50), default="viewer")  # admin, editor, viewer
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
@@ -66,6 +66,10 @@ class User(Base):
     is_super_admin = Column(Boolean, default=False)
     last_login_at = Column(DateTime, nullable=True)
     password_changed_at = Column(DateTime, nullable=True)
+
+    # OAuth
+    google_id = Column(String(255), nullable=True, unique=True)
+    auth_provider = Column(String(50), default="local")  # "local", "google", "local+google"
 
     organization = relationship("Organization", back_populates="users")
 
@@ -713,3 +717,26 @@ class CustomJudge(Base):
     last_health_check = Column(DateTime, nullable=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime, default=utcnow)
+
+
+# ─── License Keys ─────────────────────────────────────────────
+
+class LicenseKey(Base):
+    __tablename__ = "license_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(255), nullable=False, unique=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)  # null = unbound
+    plan = Column(String(50), nullable=False)  # starter, professional, enterprise
+    max_users = Column(Integer, default=5)
+    max_characters = Column(Integer, default=50)
+    max_evals_per_month = Column(Integer, default=1000)
+    features = Column(JSON, default=list)  # feature flags: ["red_team", "ab_testing", "multimodal"]
+    issued_at = Column(DateTime, default=utcnow)
+    expires_at = Column(DateTime, nullable=True)  # null = perpetual
+    is_active = Column(Boolean, default=True)
+    last_validated_at = Column(DateTime, nullable=True)
+    activated_at = Column(DateTime, nullable=True)
+    metadata_ = Column("metadata", JSON, default=dict)  # client name, contact, etc.
+
+    organization = relationship("Organization", foreign_keys=[org_id])

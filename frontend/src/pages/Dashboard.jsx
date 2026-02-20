@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [recentEvals, setRecentEvals] = useState([])
   const [recentChars, setRecentChars] = useState([])
   const [charMap, setCharMap] = useState({})
+  const [usageSummary, setUsageSummary] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -38,6 +39,8 @@ export default function Dashboard() {
       setRecentEvals(evalsData.slice(0, 8))
       setRecentChars((chars.data || []).slice(0, 6))
     })
+    // Fetch usage summary separately (admin-only, may fail for non-admins)
+    api.get('/org/usage/details').then(r => setUsageSummary(r.data)).catch(() => {})
   }, [])
 
   const decisionColor = (d) => ({
@@ -145,6 +148,29 @@ export default function Dashboard() {
               </Link>
             </div>
           </div>
+
+          {usageSummary && (
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">This Month</h3>
+                <Link to="/usage" className="text-xs text-blue-600 hover:underline">View details</Link>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Evaluations</span>
+                  <span className="font-medium">{usageSummary.eval_count}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">API Calls</span>
+                  <span className="font-medium">{usageSummary.api_call_count}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Est. Cost</span>
+                  <span className="font-medium">${usageSummary.estimated_cost.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="font-semibold mb-3">System Status</h3>

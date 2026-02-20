@@ -162,6 +162,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* License Key Management */}
+      <LicenseManagement />
+
       {inviteOrgId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-96">
@@ -174,6 +177,140 @@ export default function AdminDashboard() {
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={() => setInviteOrgId(null)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Send Invite</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LicenseManagement() {
+  const [licenses, setLicenses] = useState([])
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState({ plan: 'starter', max_users: '', max_characters: '', max_evals_per_month: '', expires_days: '' })
+  const [msg, setMsg] = useState('')
+  const [newKey, setNewKey] = useState('')
+
+  const load = () => {
+    api.get('/admin/licenses').then(r => setLicenses(r.data)).catch(() => {})
+  }
+  useEffect(load, [])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    setMsg(''); setNewKey('')
+    try {
+      const body = { plan: form.plan }
+      if (form.max_users) body.max_users = parseInt(form.max_users)
+      if (form.max_characters) body.max_characters = parseInt(form.max_characters)
+      if (form.max_evals_per_month) body.max_evals_per_month = parseInt(form.max_evals_per_month)
+      if (form.expires_days) {
+        const d = new Date()
+        d.setDate(d.getDate() + parseInt(form.expires_days))
+        body.expires_at = d.toISOString()
+      }
+      const r = await api.post('/admin/licenses', body)
+      setNewKey(r.data.key)
+      setShowCreate(false)
+      setForm({ plan: 'starter', max_users: '', max_characters: '', max_evals_per_month: '', expires_days: '' })
+      load()
+    } catch (err) {
+      setMsg(err.response?.data?.detail || 'Error creating license')
+    }
+  }
+
+  const handleToggle = async (id, isActive) => {
+    try { await api.patch(`/admin/licenses/${id}`, { is_active: !isActive }); load() } catch {}
+  }
+
+  return (
+    <div className="mt-6">
+      {newKey && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-yellow-800 mb-2">License Key Generated — Copy it now!</h4>
+          <code className="block bg-white border rounded p-2 text-sm font-mono break-all">{newKey}</code>
+          <button onClick={() => { navigator.clipboard.writeText(newKey); setNewKey('') }} className="mt-2 text-sm text-blue-600 hover:underline">Copy & Dismiss</button>
+        </div>
+      )}
+      {msg && <div className="text-sm bg-red-50 text-red-700 p-3 rounded mb-4">{msg}</div>}
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-4 py-3 border-b flex justify-between items-center">
+          <h3 className="font-semibold">License Keys</h3>
+          <button onClick={() => setShowCreate(true)} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">Generate License</button>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-4 py-2">Key</th>
+            <th className="text-left px-4 py-2">Plan</th>
+            <th className="text-left px-4 py-2">Limits</th>
+            <th className="text-left px-4 py-2">Org</th>
+            <th className="text-left px-4 py-2">Status</th>
+            <th className="text-left px-4 py-2">Actions</th>
+          </tr></thead>
+          <tbody className="divide-y">
+            {licenses.map(lk => (
+              <tr key={lk.id} className="hover:bg-gray-50">
+                <td className="px-4 py-2 font-mono text-xs">{lk.key.substring(0, 16)}...</td>
+                <td className="px-4 py-2 capitalize">{lk.plan}</td>
+                <td className="px-4 py-2 text-xs text-gray-500">
+                  {lk.max_users}u / {lk.max_characters}c / {lk.max_evals_per_month}e
+                </td>
+                <td className="px-4 py-2 text-xs">{lk.org_id ? `#${lk.org_id}` : 'Unbound'}</td>
+                <td className="px-4 py-2">
+                  <span className={`text-xs px-2 py-0.5 rounded ${lk.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {lk.is_active ? (lk.activated_at ? 'Active' : 'Available') : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-4 py-2">
+                  <button onClick={() => { navigator.clipboard.writeText(lk.key); setMsg('Key copied!'); setTimeout(() => setMsg(''), 2000) }} className="text-xs text-blue-600 hover:underline mr-2">Copy</button>
+                  <button onClick={() => handleToggle(lk.id, lk.is_active)} className="text-xs text-gray-500 hover:underline">
+                    {lk.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {licenses.length === 0 && <div className="p-4 text-sm text-gray-400 text-center">No license keys generated yet</div>}
+      </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 className="font-semibold mb-4">Generate License Key</h3>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Plan</label>
+                <select value={form.plan} onChange={e => setForm(f => ({...f, plan: e.target.value}))} className="w-full border rounded px-3 py-2 text-sm">
+                  <option value="starter">Starter</option>
+                  <option value="professional">Professional</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Max Users</label>
+                  <input type="number" placeholder="Auto" value={form.max_users} onChange={e => setForm(f => ({...f, max_users: e.target.value}))} className="w-full border rounded px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Max Chars</label>
+                  <input type="number" placeholder="Auto" value={form.max_characters} onChange={e => setForm(f => ({...f, max_characters: e.target.value}))} className="w-full border rounded px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Max Evals/mo</label>
+                  <input type="number" placeholder="Auto" value={form.max_evals_per_month} onChange={e => setForm(f => ({...f, max_evals_per_month: e.target.value}))} className="w-full border rounded px-2 py-1.5 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Expires in (days, blank = perpetual)</label>
+                <input type="number" placeholder="e.g. 365" value={form.expires_days} onChange={e => setForm(f => ({...f, expires_days: e.target.value}))} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Generate</button>
               </div>
             </form>
           </div>

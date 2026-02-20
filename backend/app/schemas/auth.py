@@ -22,6 +22,11 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class GoogleAuthCallback(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str
@@ -34,6 +39,7 @@ class UserOut(BaseModel):
     is_super_admin: bool = False
     last_login_at: Optional[datetime] = None
     org_name: Optional[str] = None
+    auth_provider: str = "local"
 
     class Config:
         from_attributes = True
