@@ -67,7 +67,7 @@ CanonSafe V2 is a **character IP governance platform** that manages, evaluates, 
 ### Stack
 
 - **Backend:** Python 3.11 / FastAPI / SQLAlchemy 2.0 (async) / asyncpg (prod) / aiosqlite (dev)
-- **Frontend:** React 18 / Vite / Axios / React Router
+- **Frontend:** React 18 / Vite / Tailwind CSS / Axios / React Router
 - **Database:** Cloud SQL PostgreSQL (prod) / SQLite (local dev)
 - **Infra:** Google Cloud Run (backend), Vercel (frontend), GitHub Actions (CI/CD)
 
@@ -75,16 +75,20 @@ CanonSafe V2 is a **character IP governance platform** that manages, evaluates, 
 
 ```
 backend/app/
-├── main.py              # FastAPI app + lifespan (init_db + seed on startup) + 24 router registrations
+├── main.py              # FastAPI app + lifespan (init_db + seed on startup) + 29 router registrations
 ├── core/
 │   ├── config.py        # Pydantic BaseSettings, all env vars
 │   ├── database.py      # Async engine, session factory, init_db() with idempotent migrations
+│   ├── auth.py          # JWT token creation/verification, password hashing (bcrypt), super-admin checks
+│   ├── rbac.py          # Role-based access control decorators (require_admin, require_viewer)
 │   ├── llm.py           # OpenAI + Anthropic adapter, call_both_llms_json() for bias mitigation
+│   ├── license.py       # License key validation logic
+│   ├── rate_limit.py    # Rate limiting utilities
 │   └── seed_*.py        # Demo data bootstrapping (Star Wars, Disney Princess)
-├── models/core.py       # All 31 SQLAlchemy models in one file
-├── schemas/             # Pydantic v2 request/response models (16 modules)
-├── api/routes/          # 24 route modules (each a FastAPI APIRouter)
-└── services/            # 17 business logic modules (called by routes)
+├── models/core.py       # All 37 SQLAlchemy models in one file
+├── schemas/             # Pydantic v2 request/response models (21 modules)
+├── api/routes/          # 35 route modules (each a FastAPI APIRouter)
+└── services/            # 25 business logic modules (called by routes)
 ```
 
 **Key pattern:** Routes → Services → Database. Routes handle HTTP, services handle business logic, database access is via async SQLAlchemy sessions injected through FastAPI dependencies.
@@ -93,12 +97,23 @@ backend/app/
 
 ```
 frontend/src/
-├── App.jsx              # 25 route definitions
+├── App.jsx              # 25+ route definitions
 ├── components/Layout.jsx # Sidebar navigation (all page links live here)
-├── contexts/AuthContext.jsx # JWT auth state, login/logout, org switching
-├── services/api.js      # Axios instance with Bearer token interceptor
-└── pages/               # 24 page components
+├── contexts/AuthContext.jsx # JWT auth state, login/logout/Google OAuth, God Mode org switching
+├── services/api.js      # Axios instance with Bearer token + X-Org-Override interceptors
+└── pages/               # 32 page components
 ```
+
+### Sidebar Navigation Groups (Layout.jsx)
+
+1. **Dashboard** — `/`
+2. **Characters** — `/characters`, `/franchises`, `/consent`
+3. **Evaluation** — `/evaluations`, `/critics`, `/compare`, `/reviews`, `/multimodal`
+4. **Quality** — `/test-suites`, `/certifications`, `/red-team`, `/ab-testing`
+5. **Monitoring** — `/drift`, `/improvement`, `/apm`, `/usage`
+6. **Configuration** — `/taxonomy`, `/exemplars`, `/judges`
+7. **Bottom Nav** — `/settings`, `/api-docs`, `/tutorial`, `/manual`
+8. **Admin** (super-admin only) — `/admin`
 
 ### Multi-Tenant Model
 
@@ -146,9 +161,11 @@ These bugs have been fixed but will resurface if not maintained:
 
 ### Auth Flow
 
-- Backend: OAuth2 password flow via `POST /api/auth/login` with `FormData` (username + password)
+- Backend: OAuth2 password flow via `POST /api/auth/login` with `FormData` (username + password), plus Google OAuth via `/api/auth/google/callback`
 - Frontend: `AuthContext.jsx` stores JWT in `localStorage`, attaches as `Authorization: Bearer {token}`
 - Token expiry: 24 hours (`ACCESS_TOKEN_EXPIRE_MINUTES=1440`)
+- RBAC: `core/rbac.py` provides `require_admin` and `require_viewer` decorators for route protection
+- God Mode: Super-admins can switch orgs via `X-Org-Override` header (stored in localStorage as `orgOverride`)
 
 ### Frontend API Connection
 
@@ -171,6 +188,13 @@ These bugs have been fixed but will resurface if not maintained:
 ### Adding a Database Column
 
 Edit `backend/app/models/core.py`, then add an idempotent migration in `database.py`'s `init_db()` using `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+
+### Local Seed Scripts
+
+External seed scripts in `backend/` root (not in the app package):
+- `seed_peppa.py` — 15 priority Peppa Pig characters with curated 5-pack data
+- `seed_enhance.py` — 10 supporting characters enrichment
+- `seed_all_characters.py` — Remaining 59 characters with role-based generated data
 
 ### Production Data Seeding
 
