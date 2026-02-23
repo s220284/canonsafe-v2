@@ -84,7 +84,7 @@ backend/app/
 │   ├── llm.py           # OpenAI + Anthropic adapter, call_both_llms_json() for bias mitigation
 │   ├── license.py       # License key validation logic
 │   ├── rate_limit.py    # Rate limiting utilities
-│   └── seed_*.py        # Demo data bootstrapping (Star Wars, Disney Princess)
+│   └── seed_*.py        # Demo data bootstrapping (Star Wars, Disney Princess, Hasbro/Peppa Pig/Transformers)
 ├── models/core.py       # All 37 SQLAlchemy models in one file
 ├── schemas/             # Pydantic v2 request/response models (21 modules)
 ├── api/routes/          # 35 route modules (each a FastAPI APIRouter)
@@ -212,8 +212,15 @@ Cloud Run can't run local seed scripts. Use the temporary endpoint pattern:
 | Database | Cloud SQL | `tpgpt-prod:us-east1:tpg-intel-db` / `canonsafe` |
 | CI/CD | GitHub Actions | Auto-deploys on push to `main`: backend (`GCP_SA_KEY`), frontend (`VERCEL_TOKEN`) |
 
-**Demo login:** `s220284@gmail.com` / `canonsafe2024`
-**Disney demo:** `s220284+disney@gmail.com` / `starwars` (Star Wars + Disney Princess franchises, 27 characters, 10 critics)
+### Demo Credentials
+
+| Org | Email | Password | Role | Content |
+|-----|-------|----------|------|---------|
+| CanonSafe Demo | `s220284@gmail.com` | `canonsafe2024` | admin | Peppa Pig (legacy org) |
+| Disney | `s220284+disney@gmail.com` | `starwars` | admin | Star Wars (15 chars) + Disney Princess (12 chars), 10 critics |
+| Disney | `demo@disney.canonsafe.com` | `DisneyDemo2024` | viewer | Shareable read-only demo |
+| Hasbro | `s220284+hasbro@gmail.com` | `peppa` | admin | Peppa Pig (10 chars) + Transformers (10 chars), 10 critics |
+| Hasbro | `demo@hasbro.canonsafe.com` | `HasbroDemo2024` | viewer | Shareable read-only demo |
 
 ## GCP Resources
 
