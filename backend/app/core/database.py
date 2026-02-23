@@ -576,3 +576,7 @@ async def init_db():
     # ─── Disney / Disney Princess franchise ─────────────────────
     from app.core.seed_disney_princess import bootstrap_disney_princess
     await bootstrap_disney_princess(async_session)
+
+    # ─── Hasbro / Peppa Pig + Transformers ────────────────────
+    from app.core.seed_hasbro import bootstrap_hasbro
+    await bootstrap_hasbro(async_session)

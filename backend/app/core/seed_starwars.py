@@ -1118,6 +1118,19 @@ async def bootstrap_disney_starwars(session_factory):
                     org_id=disney_org.id,
                 ))
 
+            # ── 2b. Demo viewer (shareable) ────────────────────
+            result = await session.execute(
+                _select(_User).where(_User.email == "demo@disney.canonsafe.com")
+            )
+            if not result.scalar_one_or_none():
+                session.add(_User(
+                    email="demo@disney.canonsafe.com",
+                    hashed_password=_hash_pw("DisneyDemo2024"),
+                    full_name="Disney Demo",
+                    role="viewer",
+                    org_id=disney_org.id,
+                ))
+
             # ── 3. Star Wars franchise ───────────────────────────
             result = await session.execute(
                 _select(_Franchise).where(
